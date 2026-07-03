@@ -224,6 +224,10 @@ app.post('/api/teams/save', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'You must select a Captain and a Vice-Captain.' });
     }
 
+    if (captainId === viceCaptainId) {
+      return res.status(400).json({ error: 'Captain and Vice-Captain must be different players.' });
+    }
+
     // 2. Fetch all selected players to validate budget
     const players = await prisma.player.findMany({
       where: { id: { in: playerIds } }

@@ -178,6 +178,20 @@ export default function MyTeam() {
     if (viceCaptainId === player.id) setViceCaptainId(null);
   };
 
+  const handleSetCaptain = (id) => {
+    setCaptainId(id);
+    if (viceCaptainId === id) {
+      setViceCaptainId(null);
+    }
+  };
+
+  const handleSetViceCaptain = (id) => {
+    setViceCaptainId(id);
+    if (captainId === id) {
+      setCaptainId(null);
+    }
+  };
+
   // Sort and filter player options
   const availableOptions = playersList
     .filter(p => {
@@ -309,8 +323,8 @@ export default function MyTeam() {
                   player={squad[0]} 
                   isCaptain={captainId === squad[0].id}
                   isVice={viceCaptainId === squad[0].id}
-                  onMakeCaptain={() => setCaptainId(squad[0].id)}
-                  onMakeVice={() => setViceCaptainId(squad[0].id)}
+                  onMakeCaptain={() => handleSetCaptain(squad[0].id)}
+                  onMakeVice={() => handleSetViceCaptain(squad[0].id)}
                   onSwap={() => setActiveSlot(0)}
                   onRemove={() => handleRemovePlayer(0)}
                 />
@@ -329,8 +343,8 @@ export default function MyTeam() {
                     player={player} 
                     isCaptain={captainId === player.id}
                     isVice={viceCaptainId === player.id}
-                    onMakeCaptain={() => setCaptainId(player.id)}
-                    onMakeVice={() => setViceCaptainId(player.id)}
+                    onMakeCaptain={() => handleSetCaptain(player.id)}
+                    onMakeVice={() => handleSetViceCaptain(player.id)}
                     onSwap={() => setActiveSlot(idx)}
                     onRemove={() => handleRemovePlayer(idx)}
                   />
@@ -350,8 +364,8 @@ export default function MyTeam() {
                     player={player} 
                     isCaptain={captainId === player.id}
                     isVice={viceCaptainId === player.id}
-                    onMakeCaptain={() => setCaptainId(player.id)}
-                    onMakeVice={() => setViceCaptainId(player.id)}
+                    onMakeCaptain={() => handleSetCaptain(player.id)}
+                    onMakeVice={() => handleSetViceCaptain(player.id)}
                     onSwap={() => setActiveSlot(idx)}
                     onRemove={() => handleRemovePlayer(idx)}
                   />
