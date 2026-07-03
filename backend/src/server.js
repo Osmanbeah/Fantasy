@@ -26,7 +26,7 @@ function generateInviteCode() {
 // 1. AUTH ROUTES
 // -------------------------------------------------------------
 app.post('/api/auth/register', async (req, res) => {
-  const { email, username, password } = req.body;
+  const { email, username, password, playerName, club } = req.body;
   if (!email || !username || !password) {
     return res.status(400).json({ error: 'All fields are required' });
   }
@@ -40,7 +40,6 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    // The first user registered can be admin if we want, or default everyone to USER
     const count = await prisma.user.count();
     const role = count === 0 ? 'ADMIN' : 'USER';
 
@@ -58,6 +57,20 @@ app.post('/api/auth/register', async (req, res) => {
       data: {
         userId: user.id,
         name: `${username}'s Squad`
+      }
+    });
+
+    // Fetch default price from settings
+    const settings = await prisma.settings.findFirst() || { defaultPlayerPrice: 5.0 };
+    const defaultPrice = settings.defaultPlayerPrice ?? 5.0;
+
+    // Auto-create draftable player record linked to the user
+    await prisma.player.create({
+      data: {
+        name: playerName || username,
+        club: club || 'Free Agent',
+        price: defaultPrice,
+        userId: user.id
       }
     });
 
@@ -105,6 +118,23 @@ app.get('/api/players', async (req, res) => {
     if (club && club !== 'All') {
       where.club = club;
     }
+
+    // Optional user authentication to exclude self
+    const authHeader = req.headers['authorization'];
+    if (authHeader) {
+      const token = authHeader.split(' ')[1];
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET);
+          if (decoded && decoded.id) {
+            where.NOT = { userId: decoded.id };
+          }
+        } catch (e) {
+          // Ignore invalid token
+        }
+      }
+    }
+
     const players = await prisma.player.findMany({
       where,
       orderBy: { price: 'desc' }
@@ -281,6 +311,11 @@ app.post('/api/teams/save', authenticateToken, async (req, res) => {
     const totalCost = players.reduce((sum, p) => sum + p.price, 0);
     if (totalCost > settings.creditBudget) {
       return res.status(400).json({ error: `Squad total price (${totalCost}m) exceeds budget (${settings.creditBudget}m).` });
+    }
+
+    const draftedSelf = players.some(p => p.userId === req.user.id);
+    if (draftedSelf) {
+      return res.status(400).json({ error: 'You cannot pick yourself as a player on your own team' });
     }
 
     // Find the team

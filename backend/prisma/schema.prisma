@@ -23,6 +23,7 @@ model User {
   fantasyTeam  FantasyTeam?
   leagues      League[]      @relation("LeagueMembers")
   chipUsages   ChipUsage[]
+  player       Player?
 }
 
 model Player {
@@ -31,6 +32,8 @@ model Player {
   club               String
   price              Float
   totalPoints        Int                 @default(0)
+  userId             Int?                @unique
+  user               User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   
   teamPlayers        FantasyTeamPlayer[]
   captainedTeams     FantasyTeam[]       @relation("Captain")
@@ -110,10 +113,11 @@ model League {
 }
 
 model Settings {
-  id           Int     @id @default(1) // Singleton
-  creditBudget Float   @default(100.0)
-  numStarters  Int     @default(5)
-  numSubs      Int     @default(2)
+  id                 Int     @id @default(1) // Singleton
+  creditBudget       Float   @default(100.0)
+  numStarters        Int     @default(5)
+  numSubs            Int     @default(2)
+  defaultPlayerPrice Float   @default(5.0)
 }
 
 enum Chip {

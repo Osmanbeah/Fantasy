@@ -6,6 +6,8 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [playerName, setPlayerName] = useState('');
+  const [club, setClub] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -18,7 +20,7 @@ export default function Register() {
     try {
       const data = await request('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, username, password })
+        body: JSON.stringify({ email, username, password, playerName, club })
       });
       setToken(data.token);
       setUser(data.user);
@@ -85,6 +87,30 @@ export default function Register() {
               className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm"
               placeholder="••••••••"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-on-surface-variant mb-0.5 uppercase tracking-wider">Player Name (Optional)</label>
+            <input 
+              type="text" 
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm"
+              placeholder="e.g. Cristiano"
+            />
+            <p className="text-[10px] text-on-surface-variant/80 mt-1">How you'll appear as a draftable player (optional - defaults to username)</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-on-surface-variant mb-0.5 uppercase tracking-wider">Club / Team Name (Optional)</label>
+            <input 
+              type="text" 
+              value={club}
+              onChange={(e) => setClub(e.target.value)}
+              className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm"
+              placeholder="e.g. Free Agent"
+            />
+            <p className="text-[10px] text-on-surface-variant/80 mt-1">Your real club or team name (optional - defaults to Free Agent)</p>
           </div>
 
           <button 
