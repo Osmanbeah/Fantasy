@@ -27,7 +27,9 @@ export default function MyTeam() {
 
   // Player Profile details state
   const [profilePlayerId, setProfilePlayerId] = useState(null);
+  const [profileSlotIndex, setProfileSlotIndex] = useState(null);
   const [profileData, setProfileData] = useState(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   // Dialog & Message states
   const [confirmChip, setConfirmChip] = useState(null); // chip code if confirming
@@ -90,6 +92,7 @@ export default function MyTeam() {
         .catch(err => console.error(err));
     } else {
       setProfileData(null);
+      setConfirmRemove(false);
     }
   }, [profilePlayerId]);
 
@@ -152,6 +155,45 @@ export default function MyTeam() {
     setViceCaptainId(id);
     if (captainId === id) {
       setCaptainId(null);
+    }
+  };
+
+  // Move from Starter slots to Sub slots
+  const handleMoveToBench = (starterIndex) => {
+    const player = squad[starterIndex];
+    if (!player) return;
+
+    const firstEmptySub = squad.slice(5, 7).findIndex(p => p === null);
+    if (firstEmptySub !== -1) {
+      const newSquad = [...squad];
+      const targetSubIndex = 5 + firstEmptySub;
+      newSquad[targetSubIndex] = player;
+      newSquad[starterIndex] = null;
+      setSquad(newSquad);
+      setProfileSlotIndex(targetSubIndex); // Shift modal focus to sub index
+
+      // Captain/Vice-Captain cannot be a sub
+      if (captainId === player.id) setCaptainId(null);
+      if (viceCaptainId === player.id) setViceCaptainId(null);
+    } else {
+      setError('No empty slots available on the bench.');
+    }
+  };
+
+  // Move from Sub slots to Starter slots
+  const handleMoveToStartingXI = (subIndex) => {
+    const player = squad[subIndex];
+    if (!player) return;
+
+    const firstEmptyStarter = squad.slice(0, 5).findIndex(p => p === null);
+    if (firstEmptyStarter !== -1) {
+      const newSquad = [...squad];
+      newSquad[firstEmptyStarter] = player;
+      newSquad[subIndex] = null;
+      setSquad(newSquad);
+      setProfileSlotIndex(firstEmptyStarter); // Shift modal focus to starter index
+    } else {
+      setError('No empty slots available in the starting XI.');
     }
   };
 
@@ -235,6 +277,13 @@ export default function MyTeam() {
     if (status === 'USED') return 'bg-surface-container border-outline-variant/30 text-on-surface-variant/40 line-through opacity-50 cursor-not-allowed';
     return 'bg-surface-container-low border-outline-variant text-on-surface hover:border-primary cursor-pointer active:scale-95';
   };
+
+  // Aggregated profile stats
+  const totalGoals = profileData?.matchStats?.reduce((sum, s) => sum + s.goals, 0) || 0;
+  const totalAssists = profileData?.matchStats?.reduce((sum, s) => sum + s.assists, 0) || 0;
+  const totalCleanSheets = profileData?.matchStats?.reduce((sum, s) => sum + (s.cleanSheet ? 1 : 0), 0) || 0;
+  const totalMinutes = profileData?.matchStats?.reduce((sum, s) => sum + s.minutesPlayed, 0) || 0;
+  const recentForm = profileData?.matchStats?.slice(0, 5) || [];
 
   return (
     <div className="space-y-6 pb-12">
@@ -338,11 +387,7 @@ export default function MyTeam() {
                   player={squad[0]} 
                   isCaptain={captainId === squad[0].id}
                   isVice={viceCaptainId === squad[0].id}
-                  onMakeCaptain={() => handleSetCaptain(squad[0].id)}
-                  onMakeVice={() => handleSetViceCaptain(squad[0].id)}
-                  onSwap={() => setActiveSlot(0)}
-                  onRemove={() => handleRemovePlayer(0)}
-                  onViewProfile={() => setProfilePlayerId(squad[0].id)}
+                  onViewProfile={() => { setProfileSlotIndex(0); setProfilePlayerId(squad[0].id); }}
                 />
               ) : (
                 <EmptySlot placeholder="Forward" onClick={() => setActiveSlot(0)} />
@@ -359,11 +404,7 @@ export default function MyTeam() {
                     player={player} 
                     isCaptain={captainId === player.id}
                     isVice={viceCaptainId === player.id}
-                    onMakeCaptain={() => handleSetCaptain(player.id)}
-                    onMakeVice={() => handleSetViceCaptain(player.id)}
-                    onSwap={() => setActiveSlot(idx)}
-                    onRemove={() => handleRemovePlayer(idx)}
-                    onViewProfile={() => setProfilePlayerId(player.id)}
+                    onViewProfile={() => { setProfileSlotIndex(idx); setProfilePlayerId(player.id); }}
                   />
                 ) : (
                   <EmptySlot key={idx} placeholder="Midfield" onClick={() => setActiveSlot(idx)} />
@@ -381,11 +422,7 @@ export default function MyTeam() {
                     player={player} 
                     isCaptain={captainId === player.id}
                     isVice={viceCaptainId === player.id}
-                    onMakeCaptain={() => handleSetCaptain(player.id)}
-                    onMakeVice={() => handleSetViceCaptain(player.id)}
-                    onSwap={() => setActiveSlot(idx)}
-                    onRemove={() => handleRemovePlayer(idx)}
-                    onViewProfile={() => setProfilePlayerId(player.id)}
+                    onViewProfile={() => { setProfileSlotIndex(idx); setProfilePlayerId(player.id); }}
                   />
                 ) : (
                   <EmptySlot key={idx} placeholder="Defense" onClick={() => setActiveSlot(idx)} />
@@ -407,9 +444,7 @@ export default function MyTeam() {
                   key={idx}
                   player={player}
                   isSub={true}
-                  onSwap={() => setActiveSlot(idx)}
-                  onRemove={() => handleRemovePlayer(idx)}
-                  onViewProfile={() => setProfilePlayerId(player.id)}
+                  onViewProfile={() => { setProfileSlotIndex(idx); setProfilePlayerId(player.id); }}
                 />
               ) : (
                 <EmptySlot key={idx} placeholder="Substitute" onClick={() => setActiveSlot(idx)} />
@@ -482,7 +517,7 @@ export default function MyTeam() {
                   <div 
                     className="flex items-center gap-2 cursor-pointer hover:opacity-85" 
                     title="Click to view player profile"
-                    onClick={() => setProfilePlayerId(player.id)}
+                    onClick={() => { setProfileSlotIndex(null); setProfilePlayerId(player.id); }}
                   >
                     <PlayerAvatar name={player.name} className="w-8 h-8 text-[10px]" />
                     <div className="text-left">
@@ -512,70 +547,183 @@ export default function MyTeam() {
         </div>
       )}
 
-      {/* ----------------- PLAYER PROFILE MODAL ----------------- */}
+      {/* ----------------- PLAYER PROFILE MODAL / BOTTOM SHEET ----------------- */}
       {profilePlayerId !== null && (
-        <div className="fixed inset-0 bg-surface/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-surface-container-low border border-outline-variant rounded-2xl p-6 max-w-sm w-full flex flex-col max-h-[80vh] shadow-2xl relative">
-            
+        <div 
+          className="fixed inset-0 bg-surface/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
+          onClick={() => { setProfilePlayerId(null); setProfileData(null); }}
+        >
+          <div 
+            className="bg-surface-container-low border border-outline-variant p-6 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden relative
+              max-sm:fixed max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:rounded-t-3xl max-sm:animate-slide-up
+              sm:rounded-2xl sm:max-w-md sm:w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Close button */}
             <button 
               onClick={() => { setProfilePlayerId(null); setProfileData(null); }}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface"
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface z-10"
             >
               <span className="material-symbols-outlined">close</span>
             </button>
 
-            <h3 className="text-base font-bold text-on-surface mb-3 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">account_circle</span>
-              <span>Player Profile</span>
-            </h3>
-
             {!profileData ? (
-              <div className="text-xs text-on-surface-variant text-center py-10 font-mono">Loading statistics...</div>
+              <div className="text-xs text-on-surface-variant text-center py-20 font-mono">Loading statistics...</div>
             ) : (
-              <div className="space-y-4 overflow-y-auto pr-1">
-                {/* Profile Header Card */}
-                <div className="bg-surface-container-high border border-outline-variant p-4 rounded-xl flex items-center gap-4">
-                  <PlayerAvatar name={profileData.name} className="w-12 h-12 text-base" />
-                  <div className="text-left">
-                    <h4 className="font-black text-sm text-on-surface leading-tight">{profileData.name}</h4>
-                    <p className="text-[10px] text-on-surface-variant">{profileData.club}</p>
-                    <div className="flex gap-4 mt-2 text-[10px] font-mono">
-                      <span className="text-primary font-bold">Price: ${profileData.price}M</span>
-                      <span className="text-secondary font-bold">Points: {profileData.totalPoints} pts</span>
+              <div className="space-y-5 overflow-y-auto pr-1">
+                {/* Header Information */}
+                <div className="flex items-start gap-4">
+                  <PlayerAvatar name={profileData.name} className="w-14 h-14 text-lg border-2 border-primary/20" />
+                  <div className="text-left flex-1 relative">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="font-black text-base text-on-surface leading-tight">{profileData.name}</h4>
+                      {captainId === profileData.id && (
+                        <span className="flex items-center gap-0.5 bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                          <span className="material-symbols-outlined text-[10px]">emoji_events</span>CAPTAIN
+                        </span>
+                      )}
+                      {viceCaptainId === profileData.id && (
+                        <span className="flex items-center gap-0.5 bg-primary/20 text-primary border border-primary/30 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                          <span className="material-symbols-outlined text-[10px]">shield</span>VICE
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-on-surface-variant">{profileData.club}</p>
+                    <div className="mt-2 text-xs font-mono font-bold text-primary">
+                      Price: ${profileData.price}M
                     </div>
                   </div>
                 </div>
 
-                {/* Match Stats History */}
-                <div className="space-y-2">
-                  <h5 className="text-[10px] font-mono font-bold text-on-surface-variant uppercase tracking-wider text-left">Gameweek Match History</h5>
-                  {(!profileData.matchStats || profileData.matchStats.length === 0) ? (
-                    <div className="text-[10px] text-on-surface-variant text-center py-6 bg-surface-container-lowest/30 rounded-lg">
-                      No match statistics recorded for this player yet.
+                {/* Season stats section */}
+                <div className="bg-surface-container border border-outline-variant p-4 rounded-xl space-y-3">
+                  <h5 className="text-[10px] font-mono font-bold text-on-surface-variant uppercase tracking-wider text-left">Aggregated Season Stats</h5>
+                  <div className="grid grid-cols-5 gap-2 text-center">
+                    <div className="bg-surface-container-high p-2 rounded border border-outline-variant/30">
+                      <div className="text-[10px] text-on-surface-variant">PTS</div>
+                      <div className="text-sm font-black text-secondary font-mono">{profileData.totalPoints}</div>
                     </div>
+                    <div className="bg-surface-container-high p-2 rounded border border-outline-variant/30">
+                      <div className="text-[10px] text-on-surface-variant">MIN</div>
+                      <div className="text-xs font-bold text-on-surface font-mono">{totalMinutes}</div>
+                    </div>
+                    <div className="bg-surface-container-high p-2 rounded border border-outline-variant/30">
+                      <div className="text-[10px] text-on-surface-variant">GLS</div>
+                      <div className="text-xs font-bold text-on-surface font-mono">{totalGoals}</div>
+                    </div>
+                    <div className="bg-surface-container-high p-2 rounded border border-outline-variant/30">
+                      <div className="text-[10px] text-on-surface-variant">AST</div>
+                      <div className="text-xs font-bold text-on-surface font-mono">{totalAssists}</div>
+                    </div>
+                    <div className="bg-surface-container-high p-2 rounded border border-outline-variant/30">
+                      <div className="text-[10px] text-on-surface-variant">CS</div>
+                      <div className="text-xs font-bold text-on-surface font-mono">{totalCleanSheets}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Form */}
+                <div className="space-y-2">
+                  <h5 className="text-[10px] font-mono font-bold text-on-surface-variant uppercase tracking-wider text-left">Recent Form (Last 5 Games)</h5>
+                  {recentForm.length === 0 ? (
+                    <div className="text-[10px] text-on-surface-variant text-center py-4 bg-surface-container/50 rounded-lg">No matches played recently</div>
                   ) : (
-                    <div className="space-y-2">
-                      {profileData.matchStats.map(stat => (
-                        <div key={stat.id} className="bg-surface-container border border-outline-variant/60 p-3 rounded-lg flex flex-col gap-1.5 text-xs text-left">
-                          <div className="flex justify-between items-center font-bold">
-                            <span className="text-on-surface text-[10px]">{stat.match.gameweek.name}</span>
-                            <span className="text-secondary font-mono text-[10px]">+{stat.points} pts</span>
-                          </div>
-                          <div className="text-[9px] text-on-surface-variant font-mono">
-                            {stat.match.homeClub} vs {stat.match.awayClub}
-                          </div>
-                          <div className="grid grid-cols-4 gap-1 text-[8px] text-on-surface-variant/80 font-mono text-center pt-1 border-t border-outline-variant/30">
-                            <div>Mins: {stat.minutesPlayed}</div>
-                            <div>Goals: {stat.goals}</div>
-                            <div>Assists: {stat.assists}</div>
-                            <div>CS: {stat.cleanSheet ? 'Yes' : 'No'}</div>
-                          </div>
+                    <div className="flex gap-2 justify-start overflow-x-auto py-1">
+                      {recentForm.map(stat => (
+                        <div key={stat.id} className="flex-shrink-0 bg-surface-container-high border border-outline-variant/50 p-2.5 rounded-lg text-center min-w-[70px]">
+                          <div className="text-[8px] font-bold text-on-surface-variant uppercase truncate w-14">{stat.match.gameweek.name}</div>
+                          <div className="text-xs font-black text-secondary font-mono mt-1">+{stat.points} pts</div>
+                          <div className="text-[7px] text-on-surface-variant/75 mt-0.5 truncate w-14 font-mono">{stat.minutesPlayed} mins</div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
+
+                {/* Actions at the bottom of the modal */}
+                {profileSlotIndex !== null && (
+                  <div className="border-t border-outline-variant pt-4 space-y-3">
+                    {/* Role toggles (only if in Starting XI) */}
+                    {profileSlotIndex < 5 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => handleSetCaptain(profileData.id)}
+                          className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold text-xs border transition-all ${
+                            captainId === profileData.id 
+                              ? 'bg-amber-500/20 border-amber-500 text-amber-500' 
+                              : 'bg-surface-container border-outline-variant text-on-surface hover:border-amber-500'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-sm">emoji_events</span>
+                          <span>{captainId === profileData.id ? 'Captain Active' : 'Make Captain'}</span>
+                        </button>
+                        <button 
+                          onClick={() => handleSetViceCaptain(profileData.id)}
+                          className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold text-xs border transition-all ${
+                            viceCaptainId === profileData.id 
+                              ? 'bg-primary/20 border-primary text-primary font-black' 
+                              : 'bg-surface-container border-outline-variant text-on-surface hover:border-primary'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-sm">shield</span>
+                          <span>{viceCaptainId === profileData.id ? 'Vice Active' : 'Make Vice'}</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Move to Bench / Moving to Starting XI */}
+                    {profileSlotIndex < 5 ? (
+                      <button 
+                        onClick={() => handleMoveToBench(profileSlotIndex)}
+                        disabled={squad[5] !== null && squad[6] !== null}
+                        className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-surface-container border border-outline-variant hover:border-primary disabled:opacity-40 disabled:hover:border-outline-variant text-on-surface rounded-lg font-bold text-xs transition-all"
+                      >
+                        <span className="material-symbols-outlined text-sm">arrow_downward</span>
+                        <span>Move to Bench</span>
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleMoveToStartingXI(profileSlotIndex)}
+                        disabled={!squad.slice(0, 5).includes(null)}
+                        className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-surface-container border border-outline-variant hover:border-primary disabled:opacity-40 disabled:hover:border-outline-variant text-on-surface rounded-lg font-bold text-xs transition-all"
+                      >
+                        <span className="material-symbols-outlined text-sm">arrow_upward</span>
+                        <span>Move to Starting XI</span>
+                      </button>
+                    )}
+
+                    {/* Remove from Squad block */}
+                    <div className="pt-1">
+                      {confirmRemove ? (
+                        <div className="bg-error-container/15 border border-error/50 p-2.5 rounded-lg flex items-center justify-between text-xs animate-fade-in">
+                          <span className="text-on-surface font-semibold">Confirm removal?</span>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => setConfirmRemove(false)}
+                              className="px-2 py-1 text-on-surface font-bold hover:underline"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              onClick={() => handleRemovePlayer(profileSlotIndex)}
+                              className="px-2.5 py-1 bg-error text-on-error font-bold rounded"
+                            >
+                              Yes, Remove
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => setConfirmRemove(true)}
+                          className="w-full flex items-center justify-center gap-1.5 px-4 py-2 border border-error/40 text-error hover:bg-error hover:text-on-error rounded-lg font-bold text-xs transition-all"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                          <span>Remove from Squad</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -617,34 +765,13 @@ export default function MyTeam() {
 }
 
 // Helper components for Pitch cards
-function PitchCard({ player, isCaptain, isVice, isSub, onMakeCaptain, onMakeVice, onSwap, onRemove, onViewProfile }) {
+function PitchCard({ player, isCaptain, isVice, isSub, onViewProfile }) {
   return (
     <div className="flex flex-col items-center select-none group relative">
-      
-      {/* Absolute controls overlay on hover */}
-      {!isSub && (
-        <div className="absolute -top-8 bg-surface-container-lowest border border-outline-variant rounded-md shadow-md p-1 hidden group-hover:flex gap-1.5 z-20">
-          <button 
-            onClick={onMakeCaptain}
-            className={`p-1 rounded flex items-center justify-center ${isCaptain ? 'text-amber-500' : 'text-on-surface-variant hover:text-amber-500'}`}
-            title="Set Captain"
-          >
-            <span className="material-symbols-outlined text-sm font-black">emoji_events</span>
-          </button>
-          <button 
-            onClick={onMakeVice}
-            className={`p-1 rounded flex items-center justify-center ${isVice ? 'text-primary' : 'text-on-surface-variant hover:text-primary'}`}
-            title="Set Vice Captain"
-          >
-            <span className="material-symbols-outlined text-sm">shield</span>
-          </button>
-        </div>
-      )}
-
       {/* Main card body */}
       <div 
-        onClick={onSwap}
-        className="w-16 h-20 md:w-20 md:h-24 bg-surface-container-lowest/80 border border-outline-variant hover:border-primary cursor-pointer rounded-lg p-2 flex flex-col items-center justify-between text-center relative backdrop-blur-sm"
+        onClick={onViewProfile}
+        className="w-16 h-20 md:w-20 md:h-24 bg-surface-container-lowest/80 border border-outline-variant hover:border-primary cursor-pointer rounded-lg p-2 flex flex-col items-center justify-between text-center relative backdrop-blur-sm transition-transform active:scale-95"
       >
         <PlayerAvatar name={player.name} className="w-8 h-8 md:w-10 md:h-10 text-[10px] md:text-xs" />
         
@@ -657,27 +784,11 @@ function PitchCard({ player, isCaptain, isVice, isSub, onMakeCaptain, onMakeVice
 
         {/* Roles status badges */}
         {isCaptain && (
-          <span className="absolute top-1 right-1 bg-amber-500 text-surface text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center">C</span>
+          <span className="absolute top-1 right-1 bg-amber-500 text-surface text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">C</span>
         )}
         {isVice && (
-          <span className="absolute top-1 right-1 bg-primary text-surface text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center">V</span>
+          <span className="absolute top-1 right-1 bg-primary text-surface text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">V</span>
         )}
-      </div>
-
-      {/* Profile & Remove Actions Row */}
-      <div className="flex gap-1 mt-1">
-        <button 
-          onClick={(e) => { e.stopPropagation(); onViewProfile(); }}
-          className="text-[7px] font-extrabold text-primary hover:underline bg-surface-container-lowest/65 px-1 py-0.5 rounded"
-        >
-          Profile
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          className="text-[7px] font-extrabold text-tertiary hover:underline bg-surface-container-lowest/65 px-1 py-0.5 rounded"
-        >
-          Remove
-        </button>
       </div>
     </div>
   );
@@ -687,7 +798,7 @@ function EmptySlot({ placeholder, onClick }) {
   return (
     <div 
       onClick={onClick}
-      className="w-16 h-20 md:w-20 md:h-24 border-2 border-dashed border-outline-variant/40 hover:border-primary/60 cursor-pointer rounded-lg flex flex-col items-center justify-center text-center p-2"
+      className="w-16 h-20 md:w-20 md:h-24 border-2 border-dashed border-outline-variant/40 hover:border-primary/60 cursor-pointer rounded-lg flex flex-col items-center justify-center text-center p-2 transition-transform active:scale-95"
     >
       <span className="material-symbols-outlined text-on-surface-variant/40 text-lg">add_circle</span>
       <span className="text-[8px] text-on-surface-variant/50 mt-1 uppercase tracking-wider">{placeholder}</span>
