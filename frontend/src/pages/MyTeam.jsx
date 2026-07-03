@@ -552,9 +552,12 @@ function PitchCard({ player, isCaptain, isVice, isSub, onMakeCaptain, onMakeVice
       >
         <PlayerAvatar name={player.name} className="w-8 h-8 md:w-10 md:h-10 text-[10px] md:text-xs" />
         
-        <div className="w-full">
+        <div className="w-full space-y-0.5">
           <div className="font-bold text-[9px] md:text-[10px] text-on-surface truncate w-full">{player.name}</div>
-          <div className="text-[8px] md:text-[9px] text-on-surface-variant font-mono">${player.price}M</div>
+          <div className="text-[7px] md:text-[8px] text-on-surface-variant/75 font-mono">${player.price}M</div>
+          <div className="bg-primary/15 border border-primary/30 text-primary font-bold text-[8px] md:text-[9px] px-1.5 py-0.2 rounded-sm w-fit mx-auto font-mono">
+            {player.totalPoints || 0} pts
+          </div>
         </div>
 
         {/* Roles status badges */}
