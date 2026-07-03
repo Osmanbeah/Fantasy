@@ -6,8 +6,9 @@ export default function MyTeam() {
   const [team, setTeam] = useState(null);
   const [teamName, setTeamName] = useState('');
   const [playersList, setPlayersList] = useState([]);
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState([]);
-  const [starterIds, setStarterIds] = useState([]);
+  
+  // Explicit 7 slots state (0-4 are Starters, 5-6 are Subs)
+  const [squad, setSquad] = useState([null, null, null, null, null, null, null]);
   const [captainId, setCaptainId] = useState(null);
   const [viceCaptainId, setViceCaptainId] = useState(null);
   
@@ -17,17 +18,18 @@ export default function MyTeam() {
   const [settings, setSettings] = useState({ creditBudget: 100, numStarters: 5, numSubs: 2 });
   const [loading, setLoading] = useState(true);
 
-  // Search & Filter Panel states
+  // Search & Filter state for the picker modal
   const [search, setSearch] = useState('');
   const [clubFilter, setClubFilter] = useState('All');
   const [clubs, setClubs] = useState([]);
   const [sortBy, setSortBy] = useState('price'); // 'price' or 'points'
-  const [activeSlot, setActiveSlot] = useState(null); // { index, isStarter } represents the slot user wants to replace
+  const [activeSlot, setActiveSlot] = useState(null); // index (0-6) of slot being populated/replaced
 
   // Dialog & Message states
   const [confirmChip, setConfirmChip] = useState(null); // chip code if confirming
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [pickerWarning, setPickerWarning] = useState('');
 
   const fetchData = async () => {
     try {
@@ -41,11 +43,20 @@ export default function MyTeam() {
         setCaptainId(teamData.team.captainId);
         setViceCaptainId(teamData.team.viceCaptainId);
         
-        const ids = teamData.team.players.map(p => p.playerId);
-        setSelectedPlayerIds(ids);
+        // Populate the 7 slots
+        const loadedStarters = teamData.team.players.filter(p => p.isStarter).map(p => p.player);
+        const loadedSubs = teamData.team.players.filter(p => !p.isStarter).map(p => p.player);
         
-        const starters = teamData.team.players.filter(p => p.isStarter).map(p => p.playerId);
-        setStarterIds(starters);
+        const initialSquad = [
+          loadedStarters[0] || null,
+          loadedStarters[1] || null,
+          loadedStarters[2] || null,
+          loadedStarters[3] || null,
+          loadedStarters[4] || null,
+          loadedSubs[0] || null,
+          loadedSubs[1] || null
+        ];
+        setSquad(initialSquad);
       }
       setActiveChips(teamData.activeChips || []);
       setUsedChips(teamData.usedChips || []);
@@ -67,13 +78,13 @@ export default function MyTeam() {
     fetchData();
   }, []);
 
-  const totalCost = playersList
-    .filter(p => selectedPlayerIds.includes(p.id))
+  // Budget calculation driven ONLY by the 7 slots
+  const totalCost = squad
+    .filter(p => p !== null)
     .reduce((sum, p) => sum + p.price, 0);
 
   const budgetExceeded = totalCost > settings.creditBudget;
-  const squadCount = selectedPlayerIds.length;
-  const startersCount = starterIds.length;
+  const filledCount = squad.filter(p => p !== null).length;
 
   const handlePlayChip = async (chip) => {
     setConfirmChip(null);
@@ -94,12 +105,15 @@ export default function MyTeam() {
   const handleSaveTeam = async () => {
     setError('');
     setMessage('');
+    const playerIds = squad.map(p => p?.id).filter(Boolean);
+    const starterIds = squad.slice(0, 5).map(p => p?.id).filter(Boolean);
+
     try {
       const res = await request('/teams/save', {
         method: 'POST',
         body: JSON.stringify({
           name: teamName,
-          playerIds: selectedPlayerIds,
+          playerIds,
           starterIds,
           captainId,
           viceCaptainId
@@ -112,73 +126,65 @@ export default function MyTeam() {
     }
   };
 
-  // Replace a player in squad
-  const handleSwapPlayer = (currentPlayerId, newPlayer) => {
-    if (selectedPlayerIds.includes(newPlayer.id)) {
-      setError('Player is already in your squad.');
+  // Replace a player in a specific slot
+  const handleSelectPlayerForSlot = (player) => {
+    setPickerWarning('');
+    
+    // Check if player is already in squad in another slot
+    const alreadySelected = squad.some((p, idx) => idx !== activeSlot && p && p.id === player.id);
+    if (alreadySelected) {
+      setPickerWarning('Player is already in your squad.');
       return;
     }
 
-    // Replace the player ID in selection list
-    const newSelection = selectedPlayerIds.map(id => id === currentPlayerId ? newPlayer.id : id);
-    setSelectedPlayerIds(newSelection);
-
-    // If the swapped player was starter, preserve starter status
-    if (starterIds.includes(currentPlayerId)) {
-      setStarterIds(starterIds.map(id => id === currentPlayerId ? newPlayer.id : id));
+    // Check if selection would exceed budget
+    const currentSlotPrice = squad[activeSlot]?.price || 0;
+    const projectCost = totalCost - currentSlotPrice + player.price;
+    if (projectCost > settings.creditBudget) {
+      setPickerWarning(`Selecting this player would exceed budget by $${(projectCost - settings.creditBudget).toFixed(1)}M.`);
+      return;
     }
 
-    // Preserve captain/vice-captain if swapping them
-    if (captainId === currentPlayerId) {
-      setCaptainId(newPlayer.id);
-    }
-    if (viceCaptainId === currentPlayerId) {
-      setViceCaptainId(newPlayer.id);
+    // Update slot
+    const newSquad = [...squad];
+    newSquad[activeSlot] = player;
+    setSquad(newSquad);
+
+    // If we replace a captain/vice-captain, update references
+    const prevPlayer = squad[activeSlot];
+    if (prevPlayer) {
+      if (captainId === prevPlayer.id) setCaptainId(player.id);
+      if (viceCaptainId === prevPlayer.id) setViceCaptainId(player.id);
+    } else {
+      // If setting a player, auto-assign captain if empty
+      if (!captainId) setCaptainId(player.id);
+      else if (!viceCaptainId) setViceCaptainId(player.id);
     }
 
     setActiveSlot(null);
+    setSearch('');
   };
 
-  // Add player to first empty slot
-  const handleAddPlayerToEmptySlot = (player) => {
-    if (selectedPlayerIds.includes(player.id)) {
-      setError('Player is already in your squad.');
-      return;
-    }
+  // Remove player completely from slot
+  const handleRemovePlayer = (slotIndex) => {
+    const player = squad[slotIndex];
+    if (!player) return;
 
-    const totalSlots = settings.numStarters + settings.numSubs;
-    if (selectedPlayerIds.length >= totalSlots) {
-      setError('Your squad is full. Click on a player to swap them out.');
-      return;
-    }
+    const newSquad = [...squad];
+    newSquad[slotIndex] = null;
+    setSquad(newSquad);
 
-    setSelectedPlayerIds([...selectedPlayerIds, player.id]);
-
-    // Set as starter if starter spots are not full
-    if (starterIds.length < settings.numStarters) {
-      setStarterIds([...starterIds, player.id]);
-    }
-
-    // Set default captain/vice-captain if none
-    if (!captainId) setCaptainId(player.id);
-    else if (!viceCaptainId) setViceCaptainId(player.id);
+    if (captainId === player.id) setCaptainId(null);
+    if (viceCaptainId === player.id) setViceCaptainId(null);
   };
 
-  // Remove player completely
-  const handleRemovePlayer = (playerId) => {
-    setSelectedPlayerIds(selectedPlayerIds.filter(id => id !== playerId));
-    setStarterIds(starterIds.filter(id => id !== playerId));
-    if (captainId === playerId) setCaptainId(null);
-    if (viceCaptainId === playerId) setViceCaptainId(null);
-  };
-
-  // Build grid slot allocations (1-2-2 Pitch Layout)
-  const starterPlayers = playersList.filter(p => selectedPlayerIds.includes(p.id) && starterIds.includes(p.id));
-  const subPlayers = playersList.filter(p => selectedPlayerIds.includes(p.id) && !starterIds.includes(p.id));
-
-  // Sort and filter browsers list
-  const filteredBrowserPlayers = playersList
+  // Sort and filter player options
+  const availableOptions = playersList
     .filter(p => {
+      // Exclude players already in the squad (except the one in the currently active slot we are replacing)
+      const inSquadElsewhere = squad.some((sp, idx) => idx !== activeSlot && sp && sp.id === p.id);
+      if (inSquadElsewhere) return false;
+
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const matchClub = clubFilter === 'All' || p.club === clubFilter;
       return matchSearch && matchClub;
@@ -238,7 +244,7 @@ export default function MyTeam() {
         <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={handleSaveTeam}
-            disabled={budgetExceeded || selectedPlayerIds.length !== (settings.numStarters + settings.numSubs)}
+            disabled={budgetExceeded || filledCount !== 7}
             className="px-6 py-3 bg-secondary text-on-secondary font-bold text-sm rounded-lg hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-secondary/20 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Save Squad Changes
@@ -279,158 +285,166 @@ export default function MyTeam() {
         </div>
       </div>
 
-      {/* Main Pitch and Browser view */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: CSS Football Pitch */}
-        <div className="lg:col-span-2 space-y-4">
-          <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">sports_soccer</span>
-            <span>Squad Pitch View (5 Starters + 2 Subs)</span>
-          </h3>
+      {/* Pitch view column centered */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-on-surface flex items-center gap-2 justify-center">
+          <span className="material-symbols-outlined text-primary">sports_soccer</span>
+          <span>Squad Configuration ({filledCount}/7 Filled)</span>
+        </h3>
 
-          <div className="pitch-container p-4 flex flex-col justify-between aspect-[3/4] lg:aspect-[4/5] min-h-[420px] max-w-md mx-auto">
-            {/* White Pitch Markings */}
-            <div className="pitch-line top-0 left-0 right-0 h-1/2 border-b border-white/10"></div>
-            <div className="pitch-line top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full border border-white/10"></div>
-            <div className="pitch-line top-0 left-1/4 right-1/4 h-14 border-x border-b border-white/10"></div>
-            <div className="pitch-line bottom-0 left-1/4 right-1/4 h-14 border-x border-t border-white/10"></div>
+        <div className="pitch-container p-4 flex flex-col justify-between aspect-[3/4] lg:aspect-[4/5] min-h-[420px] max-w-md mx-auto">
+          {/* White Pitch Markings */}
+          <div className="pitch-line top-0 left-0 right-0 h-1/2 border-b border-white/10"></div>
+          <div className="pitch-line top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full border border-white/10"></div>
+          <div className="pitch-line top-0 left-1/4 right-1/4 h-14 border-x border-b border-white/10"></div>
+          <div className="pitch-line bottom-0 left-1/4 right-1/4 h-14 border-x border-t border-white/10"></div>
 
-            {/* Starter positions (1-2-2 layout) */}
-            <div className="relative z-10 flex-1 flex flex-col justify-around py-4">
-              
-              {/* Row 1: Forward (1 player) */}
-              <div className="flex justify-center">
-                {starterPlayers[0] ? (
-                  <PitchCard 
-                    player={starterPlayers[0]} 
-                    isCaptain={captainId === starterPlayers[0].id}
-                    isVice={viceCaptainId === starterPlayers[0].id}
-                    onMakeCaptain={() => setCaptainId(starterPlayers[0].id)}
-                    onMakeVice={() => setViceCaptainId(starterPlayers[0].id)}
-                    onSwap={() => setActiveSlot(0)}
-                    onRemove={() => handleRemovePlayer(starterPlayers[0].id)}
-                  />
-                ) : (
-                  <EmptySlot placeholder="Forward slot" onClick={() => setActiveSlot(0)} />
-                )}
-              </div>
-
-              {/* Row 2: Midfield (2 players) */}
-              <div className="flex justify-around">
-                {[1, 2].map((idx) => {
-                  const player = starterPlayers[idx];
-                  return player ? (
-                    <PitchCard 
-                      key={player.id}
-                      player={player} 
-                      isCaptain={captainId === player.id}
-                      isVice={viceCaptainId === player.id}
-                      onMakeCaptain={() => setCaptainId(player.id)}
-                      onMakeVice={() => setViceCaptainId(player.id)}
-                      onSwap={() => setActiveSlot(idx)}
-                      onRemove={() => handleRemovePlayer(player.id)}
-                    />
-                  ) : (
-                    <EmptySlot key={idx} placeholder="Midfield slot" onClick={() => setActiveSlot(idx)} />
-                  );
-                })}
-              </div>
-
-              {/* Row 3: Defense (2 players) */}
-              <div className="flex justify-around">
-                {[3, 4].map((idx) => {
-                  const player = starterPlayers[idx];
-                  return player ? (
-                    <PitchCard 
-                      key={player.id}
-                      player={player} 
-                      isCaptain={captainId === player.id}
-                      isVice={viceCaptainId === player.id}
-                      onMakeCaptain={() => setCaptainId(player.id)}
-                      onMakeVice={() => setViceCaptainId(player.id)}
-                      onSwap={() => setActiveSlot(idx)}
-                      onRemove={() => handleRemovePlayer(player.id)}
-                    />
-                  ) : (
-                    <EmptySlot key={idx} placeholder="Defense slot" onClick={() => setActiveSlot(idx)} />
-                  );
-                })}
-              </div>
-
+          {/* Starter positions (1-2-2 layout) */}
+          <div className="relative z-10 flex-1 flex flex-col justify-around py-4">
+            
+            {/* Row 1: Forward (Slot 0) */}
+            <div className="flex justify-center">
+              {squad[0] ? (
+                <PitchCard 
+                  player={squad[0]} 
+                  isCaptain={captainId === squad[0].id}
+                  isVice={viceCaptainId === squad[0].id}
+                  onMakeCaptain={() => setCaptainId(squad[0].id)}
+                  onMakeVice={() => setViceCaptainId(squad[0].id)}
+                  onSwap={() => setActiveSlot(0)}
+                  onRemove={() => handleRemovePlayer(0)}
+                />
+              ) : (
+                <EmptySlot placeholder="Forward" onClick={() => setActiveSlot(0)} />
+              )}
             </div>
-          </div>
 
-          {/* Substitutes row */}
-          <div className="bg-surface-container-low border border-outline-variant rounded-xl p-5 max-w-md mx-auto w-full">
-            <div className="text-xs font-mono font-bold text-on-surface-variant uppercase mb-3 tracking-wider">Substitutes</div>
-            <div className="flex justify-around gap-4">
-              {[0, 1].map((subIdx) => {
-                const player = subPlayers[subIdx];
+            {/* Row 2: Midfield (Slots 1, 2) */}
+            <div className="flex justify-around">
+              {[1, 2].map((idx) => {
+                const player = squad[idx];
                 return player ? (
                   <PitchCard 
-                    key={player.id}
-                    player={player}
-                    isSub={true}
-                    onSwap={() => setActiveSlot(5 + subIdx)}
-                    onRemove={() => handleRemovePlayer(player.id)}
+                    key={idx}
+                    player={player} 
+                    isCaptain={captainId === player.id}
+                    isVice={viceCaptainId === player.id}
+                    onMakeCaptain={() => setCaptainId(player.id)}
+                    onMakeVice={() => setViceCaptainId(player.id)}
+                    onSwap={() => setActiveSlot(idx)}
+                    onRemove={() => handleRemovePlayer(idx)}
                   />
                 ) : (
-                  <EmptySlot key={subIdx} placeholder="Sub Slot" onClick={() => setActiveSlot(5 + subIdx)} />
+                  <EmptySlot key={idx} placeholder="Midfield" onClick={() => setActiveSlot(idx)} />
                 );
               })}
             </div>
+
+            {/* Row 3: Defense (Slots 3, 4) */}
+            <div className="flex justify-around">
+              {[3, 4].map((idx) => {
+                const player = squad[idx];
+                return player ? (
+                  <PitchCard 
+                    key={idx}
+                    player={player} 
+                    isCaptain={captainId === player.id}
+                    isVice={viceCaptainId === player.id}
+                    onMakeCaptain={() => setCaptainId(player.id)}
+                    onMakeVice={() => setViceCaptainId(player.id)}
+                    onSwap={() => setActiveSlot(idx)}
+                    onRemove={() => handleRemovePlayer(idx)}
+                  />
+                ) : (
+                  <EmptySlot key={idx} placeholder="Defense" onClick={() => setActiveSlot(idx)} />
+                );
+              })}
+            </div>
+
           </div>
         </div>
 
-        {/* Right Column: Player browser */}
-        <div className="bg-surface-container-low border border-outline-variant rounded-xl p-6 flex flex-col max-h-[650px] overflow-hidden">
-          <h3 className="text-lg font-bold text-on-surface mb-3 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">person_search</span>
-            <span>Roster Directory</span>
-          </h3>
-
-          <div className="space-y-3 mb-4 flex-shrink-0">
-            {/* Search */}
-            <input 
-              type="text"
-              placeholder="Search player name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-3 py-2 text-xs"
-            />
-            {/* Club Filter & Sorting */}
-            <div className="flex gap-2 justify-between">
-              <select 
-                value={clubFilter}
-                onChange={(e) => setClubFilter(e.target.value)}
-                className="bg-surface-container-high border border-outline-variant text-on-surface text-[10px] rounded px-2 py-1 flex-1"
-              >
-                {clubs.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <select 
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-surface-container-high border border-outline-variant text-on-surface text-[10px] rounded px-2 py-1 flex-1"
-              >
-                <option value="price">Sort by Price</option>
-                <option value="points">Sort by Points</option>
-              </select>
-            </div>
+        {/* Substitutes row */}
+        <div className="bg-surface-container-low border border-outline-variant rounded-xl p-5 max-w-md mx-auto w-full">
+          <div className="text-xs font-mono font-bold text-on-surface-variant uppercase mb-3 tracking-wider text-center">Substitutes</div>
+          <div className="flex justify-around gap-4">
+            {[5, 6].map((idx) => {
+              const player = squad[idx];
+              return player ? (
+                <PitchCard 
+                  key={idx}
+                  player={player}
+                  isSub={true}
+                  onSwap={() => setActiveSlot(idx)}
+                  onRemove={() => handleRemovePlayer(idx)}
+                />
+              ) : (
+                <EmptySlot key={idx} placeholder="Substitute" onClick={() => setActiveSlot(idx)} />
+              );
+            })}
           </div>
+        </div>
+      </div>
 
-          {/* Browser list */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {filteredBrowserPlayers.map(player => {
-              const inSquad = selectedPlayerIds.includes(player.id);
-              return (
+      {/* ----------------- MODAL PLAYER PICKER ----------------- */}
+      {activeSlot !== null && (
+        <div className="fixed inset-0 bg-surface/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-surface-container-low border border-outline-variant rounded-2xl p-6 max-w-md w-full flex flex-col max-h-[85vh] shadow-2xl relative">
+            
+            {/* Close button */}
+            <button 
+              onClick={() => { setActiveSlot(null); setPickerWarning(''); setSearch(''); }}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <h3 className="text-lg font-bold text-on-surface mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">person_search</span>
+              <span>Draft a Player for {activeSlot < 5 ? `Starter Slot #${activeSlot + 1}` : `Sub Slot #${activeSlot - 4}`}</span>
+            </h3>
+
+            {pickerWarning && (
+              <div className="bg-error-container/20 border border-error/50 text-error-container text-xs rounded-lg p-2.5 mb-3 flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">warning</span>
+                <span>{pickerWarning}</span>
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="space-y-3 mb-4 flex-shrink-0">
+              <input 
+                type="text"
+                placeholder="Search player name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-3 py-2 text-xs"
+              />
+              <div className="flex gap-2 justify-between">
+                <select 
+                  value={clubFilter}
+                  onChange={(e) => setClubFilter(e.target.value)}
+                  className="bg-surface-container-high border border-outline-variant text-on-surface text-[10px] rounded px-2 py-1 flex-1 font-semibold"
+                >
+                  {clubs.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select 
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="bg-surface-container-high border border-outline-variant text-on-surface text-[10px] rounded px-2 py-1 flex-1 font-semibold"
+                >
+                  <option value="price">Sort by Price</option>
+                  <option value="points">Sort by Points</option>
+                </select>
+              </div>
+            </div>
+
+            {/* List options */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {availableOptions.map(player => (
                 <div 
                   key={player.id}
-                  className={`flex justify-between items-center p-3 rounded-lg border text-xs transition-colors ${
-                    inSquad 
-                      ? 'bg-surface-container/30 border-outline-variant/20 opacity-50' 
-                      : 'bg-surface-container border-outline-variant hover:border-primary'
-                  }`}
+                  className="flex justify-between items-center p-3 bg-surface-container border border-outline-variant hover:border-primary rounded-lg text-xs transition-all"
                 >
                   <div className="flex items-center gap-2">
                     <PlayerAvatar name={player.name} className="w-8 h-8 text-[10px]" />
@@ -444,37 +458,19 @@ export default function MyTeam() {
                       <div className="font-mono font-bold text-primary">${player.price}M</div>
                       <div className="text-[9px] text-on-surface-variant font-mono">{player.totalPoints} pts</div>
                     </div>
-                    {inSquad ? (
-                      <button 
-                        onClick={() => handleRemovePlayer(player.id)}
-                        className="p-1 rounded bg-error-container/20 text-error hover:bg-error hover:text-on-error"
-                      >
-                        <span className="material-symbols-outlined text-base">delete</span>
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => {
-                          if (activeSlot !== null) {
-                            // Swap player
-                            const currentId = selectedPlayerIds[activeSlot];
-                            handleSwapPlayer(currentId, player);
-                          } else {
-                            handleAddPlayerToEmptySlot(player);
-                          }
-                        }}
-                        className="p-1.5 rounded bg-primary-container text-on-primary-container hover:brightness-110"
-                      >
-                        <span className="material-symbols-outlined text-sm">add</span>
-                      </button>
-                    )}
+                    <button 
+                      onClick={() => handleSelectPlayerForSlot(player)}
+                      className="px-3 py-1.5 rounded bg-primary-container text-on-primary-container hover:brightness-110 font-bold"
+                    >
+                      DRAFT
+                    </button>
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </div>
-
-      </div>
+      )}
 
       {/* Chip Play Confirmation Modal */}
       {confirmChip && (
@@ -510,7 +506,7 @@ export default function MyTeam() {
   );
 }
 
-// Helpers components for Pitch cards
+// Helper components for Pitch cards
 function PitchCard({ player, isCaptain, isVice, isSub, onMakeCaptain, onMakeVice, onSwap, onRemove }) {
   return (
     <div className="flex flex-col items-center select-none group relative">
