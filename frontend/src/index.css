@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans antialiased selection:bg-primary selection:text-primary-on;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #060e20;
+}
+::-webkit-scrollbar-thumb {
+  background: #2d3449;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #31394d;
+}
+
+/* Custom utilities for pitch view lines */
+.pitch-container {
+  background: radial-gradient(circle at center, #1b3d2f 0%, #0d2218 100%);
+  position: relative;
+  overflow: hidden;
+  border: 2px solid rgba(73, 221, 184, 0.2);
+  border-radius: 12px;
+}
+.pitch-line {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}

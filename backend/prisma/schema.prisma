@@ -1,0 +1,134 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  username     String        @unique
+  password     String
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now())
+  
+  fantasyTeam  FantasyTeam?
+  leagues      League[]      @relation("LeagueMembers")
+  chipUsages   ChipUsage[]
+}
+
+model Player {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  club               String
+  price              Float
+  totalPoints        Int                 @default(0)
+  
+  teamPlayers        FantasyTeamPlayer[]
+  captainedTeams     FantasyTeam[]       @relation("Captain")
+  viceCaptainedTeams FantasyTeam[]       @relation("ViceCaptain")
+  matchStats         PlayerMatchStat[]
+}
+
+model FantasyTeam {
+  id             Int                  @id @default(autoincrement())
+  name           String               @default("My Squad")
+  userId         Int                  @unique
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  captainId      Int?
+  captain        Player?              @relation("Captain", fields: [captainId], references: [id])
+  viceCaptainId  Int?
+  viceCaptain    Player?              @relation("ViceCaptain", fields: [viceCaptainId], references: [id])
+  points         Int                  @default(0) // total points of team
+  
+  players        FantasyTeamPlayer[]
+}
+
+model FantasyTeamPlayer {
+  fantasyTeamId Int
+  fantasyTeam   FantasyTeam @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+  playerId      Int
+  player        Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  isStarter     Boolean     @default(true)
+
+  @@id([fantasyTeamId, playerId])
+}
+
+model Gameweek {
+  id           Int         @id @default(autoincrement())
+  name         String      // e.g. "Gameweek 1"
+  deadline     DateTime
+  isActive     Boolean     @default(false)
+  isCompleted  Boolean     @default(false)
+  
+  matches      Match[]
+  chipUsages   ChipUsage[]
+}
+
+model Match {
+  id           Int               @id @default(autoincrement())
+  gameweekId   Int
+  gameweek     Gameweek          @relation(fields: [gameweekId], references: [id], onDelete: Cascade)
+  homeClub     String
+  awayClub     String
+  kickoff      DateTime
+  
+  matchStats   PlayerMatchStat[]
+}
+
+model PlayerMatchStat {
+  id            Int      @id @default(autoincrement())
+  playerId      Int
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  matchId       Int
+  match         Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  minutesPlayed Int      @default(0)
+  goals         Int      @default(0)
+  assists       Int      @default(0)
+  cleanSheet    Boolean  @default(false)
+  points        Int      @default(0) // points scored in this specific match
+
+  @@unique([playerId, matchId])
+}
+
+model League {
+  id          Int      @id @default(autoincrement())
+  name        String
+  inviteCode  String   @unique
+  members     User[]   @relation("LeagueMembers")
+}
+
+model Settings {
+  id           Int     @id @default(1) // Singleton
+  creditBudget Float   @default(100.0)
+  numStarters  Int     @default(5)
+  numSubs      Int     @default(2)
+}
+
+enum Chip {
+  WILDCARD
+  FREE_HIT
+  BENCH_BOOST
+  TRIPLE_CAPTAIN
+}
+
+model ChipUsage {
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chip           Chip
+  gameweekId     Int
+  gameweek       Gameweek  @relation(fields: [gameweekId], references: [id], onDelete: Cascade)
+  squadSnapshot  Json?     // Used only by Free Hit to auto-revert the squad
+
+  @@unique([userId, chip]) // Each chip can be played once per season per user
+  @@unique([userId, gameweekId]) // Only one chip can be active per gameweek
+}
