@@ -50,6 +50,7 @@ model FantasyTeam {
   points         Int                  @default(0) // total points of team
   
   players        FantasyTeamPlayer[]
+  gameweekSquads GameweekSquad[]
 }
 
 model FantasyTeamPlayer {
@@ -68,9 +69,11 @@ model Gameweek {
   deadline     DateTime
   isActive     Boolean     @default(false)
   isCompleted  Boolean     @default(false)
+  isLocked     Boolean     @default(false)
   
   matches      Match[]
   chipUsages   ChipUsage[]
+  gameweekSquads GameweekSquad[]
 }
 
 model Match {
@@ -131,4 +134,18 @@ model ChipUsage {
 
   @@unique([userId, chip]) // Each chip can be played once per season per user
   @@unique([userId, gameweekId]) // Only one chip can be active per gameweek
+}
+
+model GameweekSquad {
+  id             Int         @id @default(autoincrement())
+  fantasyTeamId  Int
+  fantasyTeam    FantasyTeam @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+  gameweekId     Int
+  gameweek       Gameweek    @relation(fields: [gameweekId], references: [id], onDelete: Cascade)
+  captainId      Int?
+  viceCaptainId  Int?
+  players        Json        // Snapshot of players: Array of { playerId, isStarter }
+  points         Int         @default(0) // points scored by this squad in this specific gameweek
+
+  @@unique([fantasyTeamId, gameweekId])
 }

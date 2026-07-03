@@ -152,6 +152,19 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleLockGameweek = async (id) => {
+    if (!window.confirm('Lock gameweek? This will take a snapshot of all teams and lock transfers.')) return;
+    setMessage('');
+    setError('');
+    try {
+      const res = await request(`/admin/gameweeks/${id}/lock`, { method: 'POST' });
+      setMessage(res.message);
+      fetchData();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   // Build match options for stat entry
   const selectedGwForStat = gameweeks.find(g => g.matches && g.matches.some(m => m.id.toString() === newStat.matchId));
   const allMatchesList = gameweeks.flatMap(g => (g.matches || []).map(m => ({ ...m, gwName: g.name })));
@@ -483,12 +496,22 @@ export default function AdminDashboard() {
                   <div>
                     {gw.isCompleted ? (
                       <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container-high px-2.5 py-1 rounded">CLOSED</span>
+                    ) : gw.isLocked ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-primary bg-primary/15 border border-primary/30 px-2.5 py-1 rounded">LOCKED</span>
+                        <button 
+                          onClick={() => handleCompleteGameweek(gw.id)}
+                          className="text-[10px] font-bold text-tertiary border border-tertiary/30 bg-tertiary/10 hover:bg-tertiary hover:text-on-tertiary px-3 py-1 rounded transition-colors"
+                        >
+                          CLOSE & REVERT SQUADS
+                        </button>
+                      </div>
                     ) : (
                       <button 
-                        onClick={() => handleCompleteGameweek(gw.id)}
-                        className="text-[10px] font-bold text-tertiary border border-tertiary/30 bg-tertiary/10 hover:bg-tertiary hover:text-on-tertiary px-3 py-1 rounded transition-colors"
+                        onClick={() => handleLockGameweek(gw.id)}
+                        className="text-[10px] font-bold text-secondary border border-secondary/30 bg-secondary/10 hover:bg-secondary hover:text-on-secondary px-3 py-1 rounded transition-colors"
                       >
-                        CLOSE & REVERT SQUADS
+                        LOCK SQUADS & DEADLINE
                       </button>
                     )}
                   </div>

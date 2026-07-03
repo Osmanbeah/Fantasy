@@ -180,7 +180,7 @@ app.get('/api/teams/my-team', authenticateToken, async (req, res) => {
       });
     }
 
-    res.json({ team, activeChips, usedChips });
+    res.json({ team, activeChips, usedChips, activeGameweek });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -261,6 +261,10 @@ app.post('/api/teams/save', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Captain and Vice-Captain must be different players.' });
     }
 
+    if (!starterIds.includes(captainId) || !starterIds.includes(viceCaptainId)) {
+      return res.status(400).json({ error: 'Both Captain and Vice-Captain must be in the starting XI.' });
+    }
+
     // 2. Fetch all selected players to validate budget
     const players = await prisma.player.findMany({
       where: { id: { in: playerIds } }
@@ -292,6 +296,10 @@ app.post('/api/teams/save', authenticateToken, async (req, res) => {
 
     if (!activeGameweek) {
       return res.status(400).json({ error: 'The transfer deadline has passed or no gameweeks are configured.' });
+    }
+
+    if (activeGameweek.isLocked) {
+      return res.status(400).json({ error: `Squad transfers are locked because ${activeGameweek.name} has been locked.` });
     }
 
     // Check chips active for upcoming gameweek
@@ -711,90 +719,43 @@ app.post('/api/admin/stats', authenticateToken, requireRole('ADMIN'), async (req
       data: { totalPoints: cumulativePoints }
     });
 
-    // If the gameweek is active or completed, let's recalculate the points of all teams for this gameweek
-    const allTeams = await prisma.fantasyTeam.findMany({
-      include: {
-        players: true
-      }
-    });
+    // Recalculate points for all teams using locked GameweekSquad snapshots
+    const teams = await prisma.fantasyTeam.findMany();
 
-    for (const team of allTeams) {
-      const activeChip = await prisma.chipUsage.findUnique({
-        where: {
-          userId_gameweekId: {
-            userId: team.userId,
-            gameweekId: gameweek.id
-          }
-        }
-      });
-
-      // Get all stats for this gameweek's matches
-      const matches = await prisma.match.findMany({
-        where: { gameweekId: gameweek.id }
-      });
-      const matchIds = matches.map(m => m.id);
-
-      const gwPlayerStats = await prisma.playerMatchStat.findMany({
-        where: {
-          matchId: { in: matchIds },
-          playerId: { in: team.players.map(p => p.playerId) }
-        }
-      });
-
-      const gwTeamPoints = calculateTeamGameweekPoints(team, gwPlayerStats, activeChip);
-
-      // Now we accumulate total points of the team across all gameweeks
-      // For this, we'll store user's team points in team.points. Let's sum this gameweek's points to cumulative team points.
-      // Wait, we can sum points for all previous gameweeks too. To make it simple, let's recalculate the cumulative points:
-      // Let's find all completed gameweeks + current active gameweek, get matches, get stats, and calculate.
-      const allCompletedOrActiveGWs = await prisma.gameweek.findMany({
-        where: { OR: [{ isCompleted: true }, { isActive: true }] }
+    for (const team of teams) {
+      const squads = await prisma.gameweekSquad.findMany({
+        where: { fantasyTeamId: team.id }
       });
 
       let totalTeamPoints = 0;
-      for (const gwIter of allCompletedOrActiveGWs) {
-        const gwMatches = await prisma.match.findMany({ where: { gameweekId: gwIter.id } });
-        const gwMatchIds = gwMatches.map(m => m.id);
 
-        const gwIterChip = await prisma.chipUsage.findUnique({
+      for (const squad of squads) {
+        const matches = await prisma.match.findMany({
+          where: { gameweekId: squad.gameweekId }
+        });
+        const matchIds = matches.map(m => m.id);
+
+        const squadPlayers = Array.isArray(squad.players) ? squad.players : [];
+        const playerIds = squadPlayers.map(sp => sp.playerId);
+
+        const gwPlayerStats = await prisma.playerMatchStat.findMany({
           where: {
-            userId_gameweekId: {
-              userId: team.userId,
-              gameweekId: gwIter.id
-            }
+            matchId: { in: matchIds },
+            playerId: { in: playerIds }
           }
         });
 
-        // Get players belonging to this user during that gameweek
-        // Wait, what if the user used FREE HIT? For that gameweek, their squad snapshot was used.
-        // Let's check if the chip usage has a squadSnapshot. If it is FREE HIT, we use the snapshot instead of current team players.
-        let squadPlayers = team.players;
-        let cId = team.captainId;
-        let vcId = team.viceCaptainId;
-
-        if (gwIterChip && gwIterChip.chip === 'FREE_HIT' && gwIterChip.squadSnapshot) {
-          const snapshot = gwIterChip.squadSnapshot; // snapshot format: { name, captainId, viceCaptainId, players: [{ playerId, isStarter }] }
-          squadPlayers = snapshot.players.map(p => ({
-            playerId: p.playerId,
-            isStarter: p.isStarter
-          }));
-          cId = snapshot.captainId;
-          vcId = snapshot.viceCaptainId;
-        }
-
-        const gwIterPlayerStats = await prisma.playerMatchStat.findMany({
-          where: {
-            matchId: { in: gwMatchIds },
-            playerId: { in: squadPlayers.map(p => p.playerId) }
-          }
-        });
-
-        const pointsForThisGW = calculateTeamGameweekPoints(
-          { captainId: cId, viceCaptainId: vcId, players: squadPlayers },
-          gwIterPlayerStats,
-          gwIterChip
+        const gwPoints = calculateTeamGameweekPoints(
+          { captainId: squad.captainId, viceCaptainId: squad.viceCaptainId, players: squadPlayers },
+          gwPlayerStats
         );
-        totalTeamPoints += pointsForThisGW;
+
+        await prisma.gameweekSquad.update({
+          where: { id: squad.id },
+          data: { points: gwPoints }
+        });
+
+        totalTeamPoints += gwPoints;
       }
 
       await prisma.fantasyTeam.update({
@@ -804,6 +765,66 @@ app.post('/api/admin/stats', authenticateToken, requireRole('ADMIN'), async (req
     }
 
     res.json({ message: 'Stat saved and all team standings recalculated!', stat });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/gameweeks/:id/lock', authenticateToken, requireRole('ADMIN'), async (req, res) => {
+  const { id } = req.params;
+  const gwId = parseInt(id);
+
+  try {
+    const gw = await prisma.gameweek.findUnique({ where: { id: gwId } });
+    if (!gw) return res.status(404).json({ error: 'Gameweek not found.' });
+
+    // 1. Fetch all fantasy teams with their current players
+    const teams = await prisma.fantasyTeam.findMany({
+      include: { players: true }
+    });
+
+    // 2. Snapshot each team into GameweekSquad table
+    for (const team of teams) {
+      const playersSnapshot = team.players.map(p => ({
+        playerId: p.playerId,
+        isStarter: p.isStarter
+      }));
+
+      await prisma.gameweekSquad.upsert({
+        where: {
+          fantasyTeamId_gameweekId: {
+            fantasyTeamId: team.id,
+            gameweekId: gwId
+          }
+        },
+        update: {
+          captainId: team.captainId,
+          viceCaptainId: team.viceCaptainId,
+          players: playersSnapshot
+        },
+        create: {
+          fantasyTeamId: team.id,
+          gameweekId: gwId,
+          captainId: team.captainId,
+          viceCaptainId: team.viceCaptainId,
+          players: playersSnapshot
+        }
+      });
+    }
+
+    // 3. Mark the gameweek as locked
+    const updatedGw = await prisma.gameweek.update({
+      where: { id: gwId },
+      data: { isLocked: true, isActive: true }
+    });
+
+    // Make other gameweeks inactive for live scoring entry
+    await prisma.gameweek.updateMany({
+      where: { id: { not: gwId } },
+      data: { isActive: false }
+    });
+
+    res.json({ message: `Gameweek "${gw.name}" locked successfully! Squad snapshots saved.`, gameweek: updatedGw });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

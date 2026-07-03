@@ -30,6 +30,7 @@ export default function MyTeam() {
   const [profileSlotIndex, setProfileSlotIndex] = useState(null);
   const [profileData, setProfileData] = useState(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [activeGameweek, setActiveGameweek] = useState(null);
 
   // Dialog & Message states
   const [confirmChip, setConfirmChip] = useState(null); // chip code if confirming
@@ -43,6 +44,7 @@ export default function MyTeam() {
       setSettings(sett);
 
       const teamData = await request('/teams/my-team');
+      setActiveGameweek(teamData.activeGameweek || null);
       if (teamData && teamData.team) {
         setTeam(teamData.team);
         setTeamName(teamData.team.name);
@@ -322,13 +324,20 @@ export default function MyTeam() {
         <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={handleSaveTeam}
-            disabled={budgetExceeded || filledCount !== 7}
+            disabled={budgetExceeded || filledCount !== 7 || activeGameweek?.isLocked}
             className="px-6 py-3 bg-secondary text-on-secondary font-bold text-sm rounded-lg hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-secondary/20 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save Squad Changes
+            {activeGameweek?.isLocked ? 'Squad Locked' : 'Save Squad Changes'}
           </button>
         </div>
       </div>
+
+      {activeGameweek?.isLocked && (
+        <div className="bg-primary/10 border border-primary/30 text-primary text-xs rounded-lg p-3.5 flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm font-black">lock</span>
+          <span>Squad transfers are locked because <strong>{activeGameweek.name}</strong> has been locked by the admin. You can still view player profiles.</span>
+        </div>
+      )}
 
       {error && (
         <div className="bg-error-container/20 border border-error/50 text-error-container text-xs rounded-lg p-3 flex items-center gap-2">
@@ -390,7 +399,7 @@ export default function MyTeam() {
                   onViewProfile={() => { setProfileSlotIndex(0); setProfilePlayerId(squad[0].id); }}
                 />
               ) : (
-                <EmptySlot placeholder="Forward" onClick={() => setActiveSlot(0)} />
+                <EmptySlot placeholder="Forward" onClick={() => !activeGameweek?.isLocked && setActiveSlot(0)} />
               )}
             </div>
 
@@ -407,7 +416,7 @@ export default function MyTeam() {
                     onViewProfile={() => { setProfileSlotIndex(idx); setProfilePlayerId(player.id); }}
                   />
                 ) : (
-                  <EmptySlot key={idx} placeholder="Midfield" onClick={() => setActiveSlot(idx)} />
+                  <EmptySlot key={idx} placeholder="Midfield" onClick={() => !activeGameweek?.isLocked && setActiveSlot(idx)} />
                 );
               })}
             </div>
@@ -425,7 +434,7 @@ export default function MyTeam() {
                     onViewProfile={() => { setProfileSlotIndex(idx); setProfilePlayerId(player.id); }}
                   />
                 ) : (
-                  <EmptySlot key={idx} placeholder="Defense" onClick={() => setActiveSlot(idx)} />
+                  <EmptySlot key={idx} placeholder="Defense" onClick={() => !activeGameweek?.isLocked && setActiveSlot(idx)} />
                 );
               })}
             </div>
@@ -447,7 +456,7 @@ export default function MyTeam() {
                   onViewProfile={() => { setProfileSlotIndex(idx); setProfilePlayerId(player.id); }}
                 />
               ) : (
-                <EmptySlot key={idx} placeholder="Substitute" onClick={() => setActiveSlot(idx)} />
+                <EmptySlot key={idx} placeholder="Substitute" onClick={() => !activeGameweek?.isLocked && setActiveSlot(idx)} />
               );
             })}
           </div>
@@ -641,7 +650,7 @@ export default function MyTeam() {
                 </div>
 
                 {/* Actions at the bottom of the modal */}
-                {profileSlotIndex !== null && (
+                {profileSlotIndex !== null && !activeGameweek?.isLocked && (
                   <div className="border-t border-outline-variant pt-4 space-y-3">
                     {/* Role toggles (only if in Starting XI) */}
                     {profileSlotIndex < 5 && (

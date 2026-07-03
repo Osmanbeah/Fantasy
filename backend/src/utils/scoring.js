@@ -27,17 +27,7 @@ function calculatePlayerPoints(stat) {
   return points;
 }
 
-/**
- * Calculates the total team points for a user in a given gameweek.
- * @param {Object} team - FantasyTeam containing players relation
- * @param {Array} playerStats - Array of PlayerMatchStat for the gameweek
- * @param {Object} activeChipUsage - ChipUsage active for this gameweek if any (Bench Boost / Triple Captain)
- */
-function calculateTeamGameweekPoints(team, playerStats, activeChipUsage) {
-  const chipType = activeChipUsage ? activeChipUsage.chip : null;
-  const isBenchBoost = chipType === 'BENCH_BOOST';
-  const isTripleCaptain = chipType === 'TRIPLE_CAPTAIN';
-
+function calculateTeamGameweekPoints(team, playerStats) {
   const statsMap = new Map();
   playerStats.forEach(stat => {
     statsMap.set(stat.playerId, stat);
@@ -47,29 +37,22 @@ function calculateTeamGameweekPoints(team, playerStats, activeChipUsage) {
   const captainId = team.captainId;
   const viceCaptainId = team.viceCaptainId;
 
-  // Let's determine if captain played
   const captainStat = statsMap.get(captainId);
   const captainMinutes = captainStat ? captainStat.minutesPlayed : 0;
   const captainPlayed = captainMinutes > 0;
 
-  team.players.forEach(teamPlayer => {
-    const playerId = teamPlayer.playerId;
-    const isStarter = teamPlayer.isStarter;
+  const players = Array.isArray(team.players) ? team.players : [];
+
+  players.forEach(p => {
+    const playerId = p.playerId;
     const stat = statsMap.get(playerId);
     const basePoints = calculatePlayerPoints(stat);
 
-    // If player is a sub and Bench Boost is NOT active, ignore points
-    if (!isStarter && !isBenchBoost) {
-      return;
-    }
-
     let multiplier = 1;
-
-    // Apply Captain / Vice-Captain multipliers
     if (playerId === captainId && captainPlayed) {
-      multiplier = isTripleCaptain ? 3 : 2;
+      multiplier = 2;
     } else if (playerId === viceCaptainId && !captainPlayed) {
-      multiplier = isTripleCaptain ? 3 : 2;
+      multiplier = 2;
     }
 
     totalPoints += basePoints * multiplier;
