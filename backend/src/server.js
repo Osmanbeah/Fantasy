@@ -111,6 +111,39 @@ app.get('/api/players', async (req, res) => {
   }
 });
 
+app.get('/api/players/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const player = await prisma.player.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        matchStats: {
+          include: {
+            match: {
+              include: {
+                gameweek: true
+              }
+            }
+          },
+          orderBy: {
+            match: {
+              kickoff: 'desc'
+            }
+          }
+        }
+      }
+    });
+
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    res.json(player);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // -------------------------------------------------------------
 // 3. TEAM BUILDER ROUTES
 // -------------------------------------------------------------

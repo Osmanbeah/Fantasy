@@ -25,6 +25,10 @@ export default function MyTeam() {
   const [sortBy, setSortBy] = useState('price'); // 'price' or 'points'
   const [activeSlot, setActiveSlot] = useState(null); // index (0-6) of slot being populated/replaced
 
+  // Player Profile details state
+  const [profilePlayerId, setProfilePlayerId] = useState(null);
+  const [profileData, setProfileData] = useState(null);
+
   // Dialog & Message states
   const [confirmChip, setConfirmChip] = useState(null); // chip code if confirming
   const [message, setMessage] = useState('');
@@ -78,6 +82,17 @@ export default function MyTeam() {
     fetchData();
   }, []);
 
+  // Fetch player profile stats on demand
+  useEffect(() => {
+    if (profilePlayerId) {
+      request(`/players/${profilePlayerId}`)
+        .then(data => setProfileData(data))
+        .catch(err => console.error(err));
+    } else {
+      setProfileData(null);
+    }
+  }, [profilePlayerId]);
+
   // Budget calculation driven ONLY by the 7 slots
   const totalCost = squad
     .filter(p => p !== null)
@@ -123,6 +138,20 @@ export default function MyTeam() {
       setTeam(res.team);
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleSetCaptain = (id) => {
+    setCaptainId(id);
+    if (viceCaptainId === id) {
+      setViceCaptainId(null);
+    }
+  };
+
+  const handleSetViceCaptain = (id) => {
+    setViceCaptainId(id);
+    if (captainId === id) {
+      setCaptainId(null);
     }
   };
 
@@ -176,20 +205,6 @@ export default function MyTeam() {
 
     if (captainId === player.id) setCaptainId(null);
     if (viceCaptainId === player.id) setViceCaptainId(null);
-  };
-
-  const handleSetCaptain = (id) => {
-    setCaptainId(id);
-    if (viceCaptainId === id) {
-      setViceCaptainId(null);
-    }
-  };
-
-  const handleSetViceCaptain = (id) => {
-    setViceCaptainId(id);
-    if (captainId === id) {
-      setCaptainId(null);
-    }
   };
 
   // Sort and filter player options
@@ -327,6 +342,7 @@ export default function MyTeam() {
                   onMakeVice={() => handleSetViceCaptain(squad[0].id)}
                   onSwap={() => setActiveSlot(0)}
                   onRemove={() => handleRemovePlayer(0)}
+                  onViewProfile={() => setProfilePlayerId(squad[0].id)}
                 />
               ) : (
                 <EmptySlot placeholder="Forward" onClick={() => setActiveSlot(0)} />
@@ -347,6 +363,7 @@ export default function MyTeam() {
                     onMakeVice={() => handleSetViceCaptain(player.id)}
                     onSwap={() => setActiveSlot(idx)}
                     onRemove={() => handleRemovePlayer(idx)}
+                    onViewProfile={() => setProfilePlayerId(player.id)}
                   />
                 ) : (
                   <EmptySlot key={idx} placeholder="Midfield" onClick={() => setActiveSlot(idx)} />
@@ -368,6 +385,7 @@ export default function MyTeam() {
                     onMakeVice={() => handleSetViceCaptain(player.id)}
                     onSwap={() => setActiveSlot(idx)}
                     onRemove={() => handleRemovePlayer(idx)}
+                    onViewProfile={() => setProfilePlayerId(player.id)}
                   />
                 ) : (
                   <EmptySlot key={idx} placeholder="Defense" onClick={() => setActiveSlot(idx)} />
@@ -391,6 +409,7 @@ export default function MyTeam() {
                   isSub={true}
                   onSwap={() => setActiveSlot(idx)}
                   onRemove={() => handleRemovePlayer(idx)}
+                  onViewProfile={() => setProfilePlayerId(player.id)}
                 />
               ) : (
                 <EmptySlot key={idx} placeholder="Substitute" onClick={() => setActiveSlot(idx)} />
@@ -458,12 +477,19 @@ export default function MyTeam() {
               {availableOptions.map(player => (
                 <div 
                   key={player.id}
-                  className="flex justify-between items-center p-3 bg-surface-container border border-outline-variant hover:border-primary rounded-lg text-xs transition-all"
+                  className="flex justify-between items-center p-3 bg-surface-container border border-outline-variant hover:border-primary rounded-lg text-xs transition-all animate-fade-in"
                 >
-                  <div className="flex items-center gap-2">
+                  <div 
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-85" 
+                    title="Click to view player profile"
+                    onClick={() => setProfilePlayerId(player.id)}
+                  >
                     <PlayerAvatar name={player.name} className="w-8 h-8 text-[10px]" />
-                    <div>
-                      <div className="font-bold text-on-surface">{player.name}</div>
+                    <div className="text-left">
+                      <div className="font-bold text-on-surface flex items-center gap-1">
+                        <span>{player.name}</span>
+                        <span className="material-symbols-outlined text-[10px] text-primary">info</span>
+                      </div>
                       <div className="text-[10px] text-on-surface-variant">{player.club}</div>
                     </div>
                   </div>
@@ -482,6 +508,76 @@ export default function MyTeam() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- PLAYER PROFILE MODAL ----------------- */}
+      {profilePlayerId !== null && (
+        <div className="fixed inset-0 bg-surface/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-surface-container-low border border-outline-variant rounded-2xl p-6 max-w-sm w-full flex flex-col max-h-[80vh] shadow-2xl relative">
+            
+            {/* Close button */}
+            <button 
+              onClick={() => { setProfilePlayerId(null); setProfileData(null); }}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <h3 className="text-base font-bold text-on-surface mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">account_circle</span>
+              <span>Player Profile</span>
+            </h3>
+
+            {!profileData ? (
+              <div className="text-xs text-on-surface-variant text-center py-10 font-mono">Loading statistics...</div>
+            ) : (
+              <div className="space-y-4 overflow-y-auto pr-1">
+                {/* Profile Header Card */}
+                <div className="bg-surface-container-high border border-outline-variant p-4 rounded-xl flex items-center gap-4">
+                  <PlayerAvatar name={profileData.name} className="w-12 h-12 text-base" />
+                  <div className="text-left">
+                    <h4 className="font-black text-sm text-on-surface leading-tight">{profileData.name}</h4>
+                    <p className="text-[10px] text-on-surface-variant">{profileData.club}</p>
+                    <div className="flex gap-4 mt-2 text-[10px] font-mono">
+                      <span className="text-primary font-bold">Price: ${profileData.price}M</span>
+                      <span className="text-secondary font-bold">Points: {profileData.totalPoints} pts</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Match Stats History */}
+                <div className="space-y-2">
+                  <h5 className="text-[10px] font-mono font-bold text-on-surface-variant uppercase tracking-wider text-left">Gameweek Match History</h5>
+                  {(!profileData.matchStats || profileData.matchStats.length === 0) ? (
+                    <div className="text-[10px] text-on-surface-variant text-center py-6 bg-surface-container-lowest/30 rounded-lg">
+                      No match statistics recorded for this player yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {profileData.matchStats.map(stat => (
+                        <div key={stat.id} className="bg-surface-container border border-outline-variant/60 p-3 rounded-lg flex flex-col gap-1.5 text-xs text-left">
+                          <div className="flex justify-between items-center font-bold">
+                            <span className="text-on-surface text-[10px]">{stat.match.gameweek.name}</span>
+                            <span className="text-secondary font-mono text-[10px]">+{stat.points} pts</span>
+                          </div>
+                          <div className="text-[9px] text-on-surface-variant font-mono">
+                            {stat.match.homeClub} vs {stat.match.awayClub}
+                          </div>
+                          <div className="grid grid-cols-4 gap-1 text-[8px] text-on-surface-variant/80 font-mono text-center pt-1 border-t border-outline-variant/30">
+                            <div>Mins: {stat.minutesPlayed}</div>
+                            <div>Goals: {stat.goals}</div>
+                            <div>Assists: {stat.assists}</div>
+                            <div>CS: {stat.cleanSheet ? 'Yes' : 'No'}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -521,7 +617,7 @@ export default function MyTeam() {
 }
 
 // Helper components for Pitch cards
-function PitchCard({ player, isCaptain, isVice, isSub, onMakeCaptain, onMakeVice, onSwap, onRemove }) {
+function PitchCard({ player, isCaptain, isVice, isSub, onMakeCaptain, onMakeVice, onSwap, onRemove, onViewProfile }) {
   return (
     <div className="flex flex-col items-center select-none group relative">
       
@@ -568,12 +664,21 @@ function PitchCard({ player, isCaptain, isVice, isSub, onMakeCaptain, onMakeVice
         )}
       </div>
 
-      <button 
-        onClick={(e) => { e.stopPropagation(); onRemove(); }}
-        className="text-[8px] font-bold text-tertiary hover:underline mt-1 bg-surface-container-lowest/50 px-1 py-0.5 rounded"
-      >
-        Remove
-      </button>
+      {/* Profile & Remove Actions Row */}
+      <div className="flex gap-1 mt-1">
+        <button 
+          onClick={(e) => { e.stopPropagation(); onViewProfile(); }}
+          className="text-[7px] font-extrabold text-primary hover:underline bg-surface-container-lowest/65 px-1 py-0.5 rounded"
+        >
+          Profile
+        </button>
+        <button 
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="text-[7px] font-extrabold text-tertiary hover:underline bg-surface-container-lowest/65 px-1 py-0.5 rounded"
+        >
+          Remove
+        </button>
+      </div>
     </div>
   );
 }
