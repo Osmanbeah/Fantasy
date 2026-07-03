@@ -531,6 +531,15 @@ app.get('/api/gameweeks', async (req, res) => {
 // -------------------------------------------------------------
 // 7. ADMIN DASHBOARD & CONTROLS (GATED BY ADMIN ROLE)
 // -------------------------------------------------------------
+app.get('/api/settings', authenticateToken, async (req, res) => {
+  try {
+    const settings = await prisma.settings.findFirst() || { id: 1, creditBudget: 100.0, numStarters: 5, numSubs: 2 };
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/admin/settings', authenticateToken, requireRole('ADMIN'), async (req, res) => {
   try {
     const settings = await prisma.settings.findFirst() || { id: 1, creditBudget: 100.0, numStarters: 5, numSubs: 2 };

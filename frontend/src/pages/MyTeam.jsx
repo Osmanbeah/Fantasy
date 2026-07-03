@@ -39,7 +39,7 @@ export default function MyTeam() {
 
   const fetchData = async () => {
     try {
-      const sett = await request('/admin/settings');
+      const sett = await request('/settings');
       setSettings(sett);
 
       const teamData = await request('/teams/my-team');
