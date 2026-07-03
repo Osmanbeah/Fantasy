@@ -13,6 +13,10 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.json({ message: "Kinetic Fantasy League API is running!" });
+});
+
 // Helper to generate invite codes
 function generateInviteCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
