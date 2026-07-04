@@ -278,6 +278,11 @@ export default function MyTeam() {
 
     if (captainId === player.id) setCaptainId(null);
     if (viceCaptainId === player.id) setViceCaptainId(null);
+
+    // Close the detail view
+    setProfileSlotIndex(null);
+    setProfilePlayerId(null);
+    setConfirmRemove(false);
   };
 
   // Sort and filter player options
@@ -381,6 +386,13 @@ export default function MyTeam() {
         <div className="bg-primary/10 border border-primary/30 text-primary text-xs rounded-lg p-3.5 flex items-center gap-2">
           <span className="material-symbols-outlined text-sm font-black">lock</span>
           <span>Squads are locked for <strong>{activeGameweek.name}</strong>. You can't make changes until it finishes.</span>
+        </div>
+      )}
+
+      {!activeGameweek?.isLocked && filledCount < 7 && (
+        <div className="bg-tertiary/10 border border-tertiary/30 text-tertiary text-xs rounded-lg p-3.5 flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm font-black">info</span>
+          <span>Your squad is incomplete ({filledCount}/7 players). Please add replacement players to all empty slots and verify your Captain/Vice-Captain selections to enable the "Save Squad Changes" button.</span>
         </div>
       )}
 
