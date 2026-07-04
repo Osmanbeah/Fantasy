@@ -18,6 +18,22 @@ export default function AdminDashboard() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  });
+
+  const showConfirm = (title, message, onConfirm) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm
+    });
+  };
+
   const fetchData = async () => {
     try {
       const [setts, pls, gws] = await Promise.all([
@@ -89,17 +105,22 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeletePlayer = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this player?')) return;
-    setMessage('');
-    setError('');
-    try {
-      await request(`/admin/players/${id}`, { method: 'DELETE' });
-      setPlayers(players.filter(p => p.id !== id));
-      setMessage('Player deleted successfully.');
-    } catch (err) {
-      setError(err.message);
-    }
+  const handleDeletePlayer = (id) => {
+    showConfirm(
+      'Delete Player',
+      'Are you sure you want to delete this player?',
+      async () => {
+        setMessage('');
+        setError('');
+        try {
+          await request(`/admin/players/${id}`, { method: 'DELETE' });
+          setPlayers(players.filter(p => p.id !== id));
+          setMessage('Player deleted successfully.');
+        } catch (err) {
+          setError(err.message);
+        }
+      }
+    );
   };
 
   const handleAddGameweek = async (e) => {
@@ -153,43 +174,58 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleCompleteGameweek = async (id) => {
-    if (!window.confirm('Complete gameweek? This will freeze its scores and revert Free Hit squads.')) return;
-    setMessage('');
-    setError('');
-    try {
-      const res = await request(`/admin/gameweeks/${id}/complete`, { method: 'POST' });
-      setMessage(res.message);
-      fetchData();
-    } catch (err) {
-      setError(err.message);
-    }
+  const handleCompleteGameweek = (id) => {
+    showConfirm(
+      'Complete Gameweek',
+      'Complete gameweek? This will freeze its scores and revert Free Hit squads.',
+      async () => {
+        setMessage('');
+        setError('');
+        try {
+          const res = await request(`/admin/gameweeks/${id}/complete`, { method: 'POST' });
+          setMessage(res.message);
+          fetchData();
+        } catch (err) {
+          setError(err.message);
+        }
+      }
+    );
   };
 
-  const handleLockGameweek = async (id) => {
-    if (!window.confirm('Lock gameweek? This will take a snapshot of all teams and lock transfers.')) return;
-    setMessage('');
-    setError('');
-    try {
-      const res = await request(`/admin/gameweeks/${id}/lock`, { method: 'POST' });
-      setMessage(res.message);
-      fetchData();
-    } catch (err) {
-      setError(err.message);
-    }
+  const handleLockGameweek = (id) => {
+    showConfirm(
+      'Lock Gameweek',
+      'Lock gameweek? This will take a snapshot of all teams and lock transfers.',
+      async () => {
+        setMessage('');
+        setError('');
+        try {
+          const res = await request(`/admin/gameweeks/${id}/lock`, { method: 'POST' });
+          setMessage(res.message);
+          fetchData();
+        } catch (err) {
+          setError(err.message);
+        }
+      }
+    );
   };
 
-  const handleDeleteGameweek = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this gameweek? This will also delete all matches, stats, and squad snapshots for this week!')) return;
-    setMessage('');
-    setError('');
-    try {
-      await request(`/admin/gameweeks/${id}`, { method: 'DELETE' });
-      setGameweeks(gameweeks.filter(gw => gw.id !== id));
-      setMessage('Gameweek deleted successfully!');
-    } catch (err) {
-      setError(err.message);
-    }
+  const handleDeleteGameweek = (id) => {
+    showConfirm(
+      'Delete Gameweek',
+      'Are you sure you want to delete this gameweek? This will also delete all matches, stats, and squad snapshots for this week!',
+      async () => {
+        setMessage('');
+        setError('');
+        try {
+          await request(`/admin/gameweeks/${id}`, { method: 'DELETE' });
+          setGameweeks(gameweeks.filter(gw => gw.id !== id));
+          setMessage('Gameweek deleted successfully!');
+        } catch (err) {
+          setError(err.message);
+        }
+      }
+    );
   };
 
   // Build match options for stat entry
@@ -198,6 +234,37 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8 pb-10">
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-surface-container-low border border-outline-variant rounded-xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-fade-in">
+            <div className="flex items-center gap-3 text-tertiary">
+              <span className="material-symbols-outlined text-2xl font-black">warning</span>
+              <h4 className="text-lg font-bold text-on-surface">{confirmDialog.title}</h4>
+            </div>
+            <p className="text-xs text-on-surface-variant text-left leading-relaxed">
+              {confirmDialog.message}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button 
+                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 border border-outline-variant text-on-surface rounded-lg font-bold text-xs hover:bg-surface-container-high transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  if (confirmDialog.onConfirm) confirmDialog.onConfirm();
+                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                }}
+                className="px-4 py-2 bg-tertiary text-on-tertiary rounded-lg font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-tertiary/15"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <h2 className="text-3xl font-black text-on-surface">Admin Dashboard</h2>
         <p className="text-xs text-on-surface-variant">System rules settings, players registry, and matches results stats</p>
