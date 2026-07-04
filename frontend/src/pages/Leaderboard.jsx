@@ -130,31 +130,31 @@ export default function Leaderboard() {
         <div className="space-y-8">
           {/* Podium for top 3 (only shown if not filtering/searching or if top 3 match) */}
           {topThree.length > 0 && !search && (
-            <div className="flex flex-col md:flex-row items-end justify-center gap-6 py-6 max-w-2xl mx-auto border-b border-outline-variant/30">
+            <div className="flex items-end justify-center gap-3 md:gap-6 py-6 max-w-2xl mx-auto border-b border-outline-variant/30">
               {/* 2nd place */}
               {topThree[1] && (
-                <div className="flex flex-col items-center order-2 md:order-1 translate-y-3">
+                <div className="flex flex-col items-center order-1 translate-y-3">
                   <div className="relative mb-2">
-                    <PlayerAvatar name={topThree[1].username} photoUrl={topThree[1].photoUrl} className="w-16 h-16 text-lg border-2 border-slate-300 shadow-lg" />
-                    <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs bg-slate-300 text-surface font-black">2</span>
+                    <PlayerAvatar name={topThree[1].username} photoUrl={topThree[1].photoUrl} className="w-12 h-12 md:w-16 md:h-16 text-xs md:text-lg border-2 border-slate-300 shadow-lg" />
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[10px] md:text-xs bg-slate-300 text-surface font-black">2</span>
                   </div>
-                  <span className="text-sm font-bold text-on-surface">{topThree[1].teamName}</span>
-                  <span className="text-xs text-on-surface-variant">@{topThree[1].username}</span>
-                  <span className="text-lg font-black text-slate-300 font-mono mt-1">{topThree[1].points} pts</span>
+                  <span className="text-[10px] md:text-sm font-bold text-on-surface text-center truncate max-w-[80px] md:max-w-none">{topThree[1].teamName}</span>
+                  <span className="text-[8px] md:text-xs text-on-surface-variant truncate max-w-[80px] md:max-w-none">@{topThree[1].username}</span>
+                  <span className="text-sm md:text-lg font-black text-slate-300 font-mono mt-1">{topThree[1].points} pts</span>
                 </div>
               )}
 
               {/* 1st place */}
               {topThree[0] && (
-                <div className="flex flex-col items-center order-1 md:order-2">
+                <div className="flex flex-col items-center order-2">
                   <div className="relative mb-2">
-                    <span className="material-symbols-outlined absolute -top-6 left-1/2 -translate-x-1/2 text-amber-500 text-3xl animate-bounce">emoji_events</span>
-                    <PlayerAvatar name={topThree[0].username} photoUrl={topThree[0].photoUrl} className="w-20 h-20 text-xl border-4 border-amber-500 shadow-xl shadow-amber-500/10" />
-                    <span className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-sm bg-amber-500 text-surface font-black">1</span>
+                    <span className="material-symbols-outlined absolute -top-5 left-1/2 -translate-x-1/2 text-amber-500 text-2xl md:text-3xl animate-bounce">emoji_events</span>
+                    <PlayerAvatar name={topThree[0].username} photoUrl={topThree[0].photoUrl} className="w-16 h-16 md:w-20 md:h-20 text-sm md:text-xl border-4 border-amber-500 shadow-xl shadow-amber-500/10" />
+                    <span className="absolute -bottom-1 -right-1 w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm bg-amber-500 text-surface font-black">1</span>
                   </div>
-                  <span className="text-base font-black text-on-surface">{topThree[0].teamName}</span>
-                  <span className="text-xs text-on-surface-variant">@{topThree[0].username}</span>
-                  <span className="text-2xl font-black text-amber-500 font-mono mt-1">{topThree[0].points} pts</span>
+                  <span className="text-xs md:text-base font-black text-on-surface text-center truncate max-w-[90px] md:max-w-none">{topThree[0].teamName}</span>
+                  <span className="text-[8px] md:text-xs text-on-surface-variant truncate max-w-[90px] md:max-w-none">@{topThree[0].username}</span>
+                  <span className="text-base md:text-2xl font-black text-amber-500 font-mono mt-1">{topThree[0].points} pts</span>
                 </div>
               )}
 
@@ -162,12 +162,12 @@ export default function Leaderboard() {
               {topThree[2] && (
                 <div className="flex flex-col items-center order-3 translate-y-6">
                   <div className="relative mb-2">
-                    <PlayerAvatar name={topThree[2].username} photoUrl={topThree[2].photoUrl} className="w-14 h-14 text-sm border-2 border-amber-700 shadow-md" />
-                    <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs bg-amber-700 text-surface font-black">3</span>
+                    <PlayerAvatar name={topThree[2].username} photoUrl={topThree[2].photoUrl} className="w-10 h-10 md:w-14 md:h-14 text-[10px] md:text-sm border-2 border-amber-700 shadow-md" />
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[10px] md:text-xs bg-amber-700 text-surface font-black">3</span>
                   </div>
-                  <span className="text-xs font-bold text-on-surface">{topThree[2].teamName}</span>
-                  <span className="text-xs text-on-surface-variant">@{topThree[2].username}</span>
-                  <span className="text-base font-black text-amber-700 font-mono mt-1">{topThree[2].points} pts</span>
+                  <span className="text-[10px] md:text-xs font-bold text-on-surface text-center truncate max-w-[80px] md:max-w-none">{topThree[2].teamName}</span>
+                  <span className="text-[8px] md:text-xs text-on-surface-variant truncate max-w-[80px] md:max-w-none">@{topThree[2].username}</span>
+                  <span className="text-xs md:text-base font-black text-amber-700 font-mono mt-1">{topThree[2].points} pts</span>
                 </div>
               )}
             </div>
@@ -179,9 +179,9 @@ export default function Leaderboard() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-outline-variant bg-surface-container/50 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                    <th className="px-6 py-4 w-20 text-center">Rank</th>
-                    <th className="px-6 py-4">Manager / Team</th>
-                    <th className="px-6 py-4 text-right font-mono">Total Points</th>
+                    <th className="px-3 md:px-6 py-3 md:py-4 w-12 md:w-20 text-center">Rank</th>
+                    <th className="px-3 md:px-6 py-3 md:py-4">Manager / Team</th>
+                    <th className="px-3 md:px-6 py-3 md:py-4 text-right font-mono">Pts</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20 text-sm">
@@ -190,21 +190,21 @@ export default function Leaderboard() {
                       key={item.userId}
                       className="hover:bg-surface-container-high/40 transition-colors"
                     >
-                      <td className="px-6 py-4">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold ${getRankBadgeClass(item.rank)}`}>
+                      <td className="px-3 md:px-6 py-3 md:py-4">
+                        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold ${getRankBadgeClass(item.rank)}`}>
                           {item.rank}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <PlayerAvatar name={item.username} photoUrl={item.photoUrl} className="w-9 h-9 text-xs" />
+                      <td className="px-3 md:px-6 py-3 md:py-4">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <PlayerAvatar name={item.username} photoUrl={item.photoUrl} className="w-8 h-8 md:w-9 md:h-9 text-xs" />
                           <div>
-                            <div className="font-bold text-on-surface">{item.teamName}</div>
-                            <div className="text-xs text-on-surface-variant">@{item.username}</div>
+                            <div className="font-bold text-on-surface text-xs md:text-sm truncate max-w-[120px] sm:max-w-none">{item.teamName}</div>
+                            <div className="text-[10px] md:text-xs text-on-surface-variant">@{item.username}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right font-mono font-bold text-base text-primary">
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-right font-mono font-bold text-sm md:text-base text-primary">
                         {item.points}
                       </td>
                     </tr>
