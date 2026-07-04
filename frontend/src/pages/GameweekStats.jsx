@@ -105,6 +105,8 @@ export default function GameweekStats() {
                   <span>
                     {selectedGw?.isCompleted ? (
                       <span className="px-2 py-0.5 rounded text-xs bg-error/15 text-tertiary font-bold">COMPLETED</span>
+                    ) : selectedGw?.isLocked ? (
+                      <span className="px-2 py-0.5 rounded text-xs bg-primary/15 text-primary font-bold">LOCKED</span>
                     ) : selectedGw?.isActive ? (
                       <span className="px-2 py-0.5 rounded text-xs bg-secondary/15 text-secondary font-bold">ACTIVE</span>
                     ) : (
