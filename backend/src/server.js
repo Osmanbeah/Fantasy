@@ -728,6 +728,18 @@ app.post('/api/admin/gameweeks', authenticateToken, requireRole('ADMIN'), async 
   }
 });
 
+app.delete('/api/admin/gameweeks/:id', authenticateToken, requireRole('ADMIN'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deleted = await prisma.gameweek.delete({
+      where: { id: parseInt(id) }
+    });
+    res.json({ message: `Gameweek "${deleted.name}" deleted successfully.`, deleted });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/admin/matches', authenticateToken, requireRole('ADMIN'), async (req, res) => {
   const { homeClub, awayClub, gameweekId, kickoff } = req.body;
   if (!homeClub || !awayClub || !gameweekId || !kickoff) {

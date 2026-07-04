@@ -179,6 +179,19 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteGameweek = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this gameweek? This will also delete all matches, stats, and squad snapshots for this week!')) return;
+    setMessage('');
+    setError('');
+    try {
+      await request(`/admin/gameweeks/${id}`, { method: 'DELETE' });
+      setGameweeks(gameweeks.filter(gw => gw.id !== id));
+      setMessage('Gameweek deleted successfully!');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   // Build match options for stat entry
   const selectedGwForStat = gameweeks.find(g => g.matches && g.matches.some(m => m.id.toString() === newStat.matchId));
   const allMatchesList = gameweeks.flatMap(g => (g.matches || []).map(m => ({ ...m, gwName: g.name })));
@@ -441,7 +454,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Player Registry Creation / Editing */}
-          <div id="player-form" className="bg-surface-container-low border border-outline-variant rounded-xl p-6 space-y-4">
+          <div className="bg-surface-container-low border border-outline-variant rounded-xl p-6 space-y-4">
             <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
               <span className="material-symbols-outlined text-primary">{editingPlayerId ? 'edit' : 'person_add'}</span>
               <span>{editingPlayerId ? 'Edit Player' : 'Add Player to Registry'}</span>
@@ -521,27 +534,35 @@ export default function AdminDashboard() {
                     <div className="font-bold text-sm text-on-surface">{gw.name}</div>
                     <div className="text-[10px] text-on-surface-variant font-mono">Deadline: {new Date(gw.deadline).toLocaleString()}</div>
                   </div>
-                  <div>
-                    {gw.isCompleted ? (
-                      <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container-high px-2.5 py-1 rounded">CLOSED</span>
-                    ) : gw.isLocked ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-primary bg-primary/15 border border-primary/30 px-2.5 py-1 rounded">LOCKED</span>
+                  <div className="flex items-center gap-3">
+                    <div>
+                      {gw.isCompleted ? (
+                        <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container-high px-2.5 py-1 rounded">CLOSED</span>
+                      ) : gw.isLocked ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-primary bg-primary/15 border border-primary/30 px-2.5 py-1 rounded">LOCKED</span>
+                          <button 
+                            onClick={() => handleCompleteGameweek(gw.id)}
+                            className="text-[10px] font-bold text-tertiary border border-tertiary/30 bg-tertiary/10 hover:bg-tertiary hover:text-on-tertiary px-3 py-1 rounded transition-colors"
+                          >
+                            CLOSE & REVERT SQUADS
+                          </button>
+                        </div>
+                      ) : (
                         <button 
-                          onClick={() => handleCompleteGameweek(gw.id)}
-                          className="text-[10px] font-bold text-tertiary border border-tertiary/30 bg-tertiary/10 hover:bg-tertiary hover:text-on-tertiary px-3 py-1 rounded transition-colors"
+                          onClick={() => handleLockGameweek(gw.id)}
+                          className="text-[10px] font-bold text-secondary border border-secondary/30 bg-secondary/10 hover:bg-secondary hover:text-on-secondary px-3 py-1 rounded transition-colors"
                         >
-                          CLOSE & REVERT SQUADS
+                          LOCK SQUADS & DEADLINE
                         </button>
-                      </div>
-                    ) : (
-                      <button 
-                        onClick={() => handleLockGameweek(gw.id)}
-                        className="text-[10px] font-bold text-secondary border border-secondary/30 bg-secondary/10 hover:bg-secondary hover:text-on-secondary px-3 py-1 rounded transition-colors"
-                      >
-                        LOCK SQUADS & DEADLINE
-                      </button>
-                    )}
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => handleDeleteGameweek(gw.id)}
+                      className="text-xs font-bold text-tertiary hover:underline px-2"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               ))}
@@ -584,7 +605,6 @@ export default function AdminDashboard() {
                         onClick={() => {
                           setEditingPlayerId(p.id);
                           setNewPlayer({ name: p.name, club: p.club, price: p.price });
-                          document.getElementById('player-form')?.scrollIntoView({ behavior: 'smooth' });
                         }}
                         className="text-xs font-semibold text-primary hover:underline px-2"
                       >
