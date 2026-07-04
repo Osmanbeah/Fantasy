@@ -31,6 +31,9 @@ export default function MyTeam() {
   const [profileData, setProfileData] = useState(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [activeGameweek, setActiveGameweek] = useState(null);
+  const [myPlayerProfile, setMyPlayerProfile] = useState(null);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [profileForm, setProfileForm] = useState({ playerName: '', club: '', photoUrl: '' });
 
   // Dialog & Message states
   const [confirmChip, setConfirmChip] = useState(null); // chip code if confirming
@@ -74,6 +77,10 @@ export default function MyTeam() {
 
       const uniqueClubs = ['All', ...new Set(plList.map(p => p.club))];
       setClubs(uniqueClubs);
+
+      const myProfile = await request('/users/profile');
+      setMyPlayerProfile(myProfile);
+      setProfileForm({ playerName: myProfile.name, club: myProfile.club, photoUrl: myProfile.photoUrl || '' });
     } catch (e) {
       console.error(e);
       setError('Failed to fetch squad data.');
@@ -141,6 +148,27 @@ export default function MyTeam() {
       });
       setMessage(res.message);
       setTeam(res.team);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    try {
+      const updated = await request('/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify(profileForm)
+      });
+      setMyPlayerProfile(updated);
+      setShowProfileEdit(false);
+      setMessage('Player profile updated successfully!');
+      
+      // Refresh players pool
+      const plList = await request('/players');
+      setPlayersList(plList);
     } catch (err) {
       setError(err.message);
     }
@@ -328,6 +356,21 @@ export default function MyTeam() {
             className="px-6 py-3 bg-secondary text-on-secondary font-bold text-sm rounded-lg hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-secondary/20 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {activeGameweek?.isLocked ? 'Squad Locked' : 'Save Squad Changes'}
+          </button>
+          <button 
+            onClick={() => {
+              if (myPlayerProfile) {
+                setProfileForm({
+                  playerName: myPlayerProfile.name,
+                  club: myPlayerProfile.club,
+                  photoUrl: myPlayerProfile.photoUrl || ''
+                });
+              }
+              setShowProfileEdit(true);
+            }}
+            className="px-6 py-3 bg-surface-container-high text-on-surface border border-outline-variant font-bold text-sm rounded-lg hover:bg-surface-container-highest active:scale-95 transition-all"
+          >
+            Customize Profile
           </button>
         </div>
       </div>
@@ -528,7 +571,7 @@ export default function MyTeam() {
                     title="Click to view player profile"
                     onClick={() => { setProfileSlotIndex(null); setProfilePlayerId(player.id); }}
                   >
-                    <PlayerAvatar name={player.name} className="w-8 h-8 text-[10px]" />
+                    <PlayerAvatar name={player.name} photoUrl={player.photoUrl} className="w-8 h-8 text-[10px]" />
                     <div className="text-left">
                       <div className="font-bold text-on-surface flex items-center gap-1">
                         <span>{player.name}</span>
@@ -582,7 +625,7 @@ export default function MyTeam() {
               <div className="space-y-5 overflow-y-auto pr-1">
                 {/* Header Information */}
                 <div className="flex items-start gap-4">
-                  <PlayerAvatar name={profileData.name} className="w-14 h-14 text-lg border-2 border-primary/20" />
+                  <PlayerAvatar name={profileData.name} photoUrl={profileData.photoUrl} className="w-14 h-14 text-lg border-2 border-primary/20" />
                   <div className="text-left flex-1 relative">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <h4 className="font-black text-base text-on-surface leading-tight">{profileData.name}</h4>
@@ -739,6 +782,73 @@ export default function MyTeam() {
         </div>
       )}
 
+      {/* Profile Edit Modal */}
+      {showProfileEdit && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-surface-container border border-outline-variant rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+            <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">account_circle</span>
+              <span>Customize Player Profile</span>
+            </h3>
+            <p className="text-xs text-on-surface-variant">Update how you appear as a draftable player in everyone's team selection pool.</p>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-on-surface-variant mb-1 uppercase tracking-wider">Player Name</label>
+                <input 
+                  type="text" 
+                  value={profileForm.playerName}
+                  onChange={(e) => setProfileForm({ ...profileForm, playerName: e.target.value })}
+                  required
+                  className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm"
+                  placeholder="Your Name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-on-surface-variant mb-1 uppercase tracking-wider">Club / Affiliation</label>
+                <input 
+                  type="text" 
+                  value={profileForm.club}
+                  onChange={(e) => setProfileForm({ ...profileForm, club: e.target.value })}
+                  required
+                  className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm"
+                  placeholder="Your Club"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-on-surface-variant mb-1 uppercase tracking-wider">Photo URL</label>
+                <input 
+                  type="url" 
+                  value={profileForm.photoUrl}
+                  onChange={(e) => setProfileForm({ ...profileForm, photoUrl: e.target.value })}
+                  className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm"
+                  placeholder="https://example.com/avatar.jpg"
+                />
+                <p className="text-[10px] text-on-surface-variant/80 mt-1">Provide an image link from the web to show your photo.</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowProfileEdit(false)}
+                  className="px-4 py-2 text-xs font-bold bg-surface-container-high text-on-surface border border-outline-variant rounded-lg hover:bg-surface-container-highest transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold bg-primary text-on-primary rounded-lg hover:brightness-110 transition-colors"
+                >
+                  Save Profile
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Chip Play Confirmation Modal */}
       {confirmChip && (
         <div className="fixed inset-0 bg-surface/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
@@ -782,7 +892,7 @@ function PitchCard({ player, isCaptain, isVice, isSub, onViewProfile }) {
         onClick={onViewProfile}
         className="w-16 h-20 md:w-20 md:h-24 bg-surface-container-lowest/80 border border-outline-variant hover:border-primary cursor-pointer rounded-lg p-2 flex flex-col items-center justify-between text-center relative backdrop-blur-sm transition-transform active:scale-95"
       >
-        <PlayerAvatar name={player.name} className="w-8 h-8 md:w-10 md:h-10 text-[10px] md:text-xs" />
+        <PlayerAvatar name={player.name} photoUrl={player.photoUrl} className="w-8 h-8 md:w-10 md:h-10 text-[10px] md:text-xs" />
         
         <div className="w-full space-y-1">
           <div className="font-bold text-[9px] md:text-[10px] text-on-surface truncate w-full">{player.name}</div>

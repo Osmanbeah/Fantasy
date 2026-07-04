@@ -19,9 +19,21 @@ export function getStringColor(str) {
   return `hsl(${h}, 65%, 45%)`;
 }
 
-export default function PlayerAvatar({ name, className = "w-10 h-10 text-sm font-semibold" }) {
+export default function PlayerAvatar({ name, photoUrl, className = "w-10 h-10 text-sm font-semibold" }) {
+  const [imageError, setImageError] = React.useState(false);
   const initials = getInitials(name);
   const bgColor = getStringColor(name);
+
+  if (photoUrl && !imageError) {
+    return (
+      <img 
+        src={photoUrl} 
+        alt={name} 
+        className={`rounded-full object-cover ${className}`}
+        onError={() => setImageError(true)}
+      />
+    );
+  }
 
   return (
     <div

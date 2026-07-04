@@ -26,7 +26,7 @@ function generateInviteCode() {
 // 1. AUTH ROUTES
 // -------------------------------------------------------------
 app.post('/api/auth/register', async (req, res) => {
-  const { email, username, password, playerName, club } = req.body;
+  const { email, username, password, playerName, club, photoUrl } = req.body;
   if (!email || !username || !password) {
     return res.status(400).json({ error: 'All fields are required' });
   }
@@ -70,7 +70,8 @@ app.post('/api/auth/register', async (req, res) => {
         name: playerName || username,
         club: club || 'Free Agent',
         price: defaultPrice,
-        userId: user.id
+        userId: user.id,
+        photoUrl: photoUrl || null
       }
     });
 
@@ -100,6 +101,43 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user.id, email: user.email, username: user.username, role: user.role } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/users/profile', authenticateToken, async (req, res) => {
+  try {
+    const player = await prisma.player.findUnique({
+      where: { userId: req.user.id }
+    });
+    res.json(player);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/users/profile', authenticateToken, async (req, res) => {
+  const { playerName, club, photoUrl } = req.body;
+  try {
+    const player = await prisma.player.findUnique({
+      where: { userId: req.user.id }
+    });
+
+    if (!player) {
+      return res.status(404).json({ error: 'Linked player record not found' });
+    }
+
+    const updatedPlayer = await prisma.player.update({
+      where: { id: player.id },
+      data: {
+        name: playerName !== undefined ? playerName : player.name,
+        club: club !== undefined ? club : player.club,
+        photoUrl: photoUrl !== undefined ? photoUrl : player.photoUrl
+      }
+    });
+
+    res.json(updatedPlayer);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -509,7 +547,7 @@ app.get('/api/leagues/:id/leaderboard', authenticateToken, async (req, res) => {
       where: { id: parseInt(id) },
       include: {
         members: {
-          include: { fantasyTeam: true }
+          include: { fantasyTeam: true, player: true }
         }
       }
     });
@@ -523,7 +561,8 @@ app.get('/api/leagues/:id/leaderboard', authenticateToken, async (req, res) => {
         userId: member.id,
         username: member.username,
         teamName: member.fantasyTeam?.name || `${member.username}'s Squad`,
-        points: member.fantasyTeam?.points || 0
+        points: member.fantasyTeam?.points || 0,
+        photoUrl: member.player?.photoUrl || null
       }))
       .sort((a, b) => b.points - a.points)
       .map((item, idx) => ({ ...item, rank: idx + 1 }));
@@ -541,7 +580,7 @@ app.get('/api/leaderboard/global', async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       where: { role: 'USER' },
-      include: { fantasyTeam: true }
+      include: { fantasyTeam: true, player: true }
     });
 
     const standings = users
@@ -549,7 +588,8 @@ app.get('/api/leaderboard/global', async (req, res) => {
         userId: user.id,
         username: user.username,
         teamName: user.fantasyTeam?.name || `${user.username}'s Squad`,
-        points: user.fantasyTeam?.points || 0
+        points: user.fantasyTeam?.points || 0,
+        photoUrl: user.player?.photoUrl || null
       }))
       .sort((a, b) => b.points - a.points)
       .map((item, idx) => ({ ...item, rank: idx + 1 }));

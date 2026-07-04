@@ -34,6 +34,7 @@ model Player {
   totalPoints        Int                 @default(0)
   userId             Int?                @unique
   user               User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  photoUrl           String?
   
   teamPlayers        FantasyTeamPlayer[]
   captainedTeams     FantasyTeam[]       @relation("Captain")

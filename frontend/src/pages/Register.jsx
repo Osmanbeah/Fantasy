@@ -8,6 +8,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [club, setClub] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export default function Register() {
     try {
       const data = await request('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, username, password, playerName, club })
+        body: JSON.stringify({ email, username, password, playerName, club, photoUrl })
       });
       setToken(data.token);
       setUser(data.user);
@@ -111,6 +112,18 @@ export default function Register() {
               placeholder="e.g. Free Agent"
             />
             <p className="text-[10px] text-on-surface-variant/80 mt-1">Your real club or team name (optional - defaults to Free Agent)</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-on-surface-variant mb-0.5 uppercase tracking-wider">Player Photo URL (Optional)</label>
+            <input 
+              type="url" 
+              value={photoUrl}
+              onChange={(e) => setPhotoUrl(e.target.value)}
+              className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm"
+              placeholder="e.g. https://domain.com/photo.jpg"
+            />
+            <p className="text-[10px] text-on-surface-variant/80 mt-1">Direct link to an image (optional - defaults to initial avatar)</p>
           </div>
 
           <button 

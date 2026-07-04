@@ -135,7 +135,7 @@ export default function Leaderboard() {
               {topThree[1] && (
                 <div className="flex flex-col items-center order-2 md:order-1 translate-y-3">
                   <div className="relative mb-2">
-                    <PlayerAvatar name={topThree[1].username} className="w-16 h-16 text-lg border-2 border-slate-300 shadow-lg" />
+                    <PlayerAvatar name={topThree[1].username} photoUrl={topThree[1].photoUrl} className="w-16 h-16 text-lg border-2 border-slate-300 shadow-lg" />
                     <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs bg-slate-300 text-surface font-black">2</span>
                   </div>
                   <span className="text-sm font-bold text-on-surface">{topThree[1].teamName}</span>
@@ -149,7 +149,7 @@ export default function Leaderboard() {
                 <div className="flex flex-col items-center order-1 md:order-2">
                   <div className="relative mb-2">
                     <span className="material-symbols-outlined absolute -top-6 left-1/2 -translate-x-1/2 text-amber-500 text-3xl animate-bounce">emoji_events</span>
-                    <PlayerAvatar name={topThree[0].username} className="w-20 h-20 text-xl border-4 border-amber-500 shadow-xl shadow-amber-500/10" />
+                    <PlayerAvatar name={topThree[0].username} photoUrl={topThree[0].photoUrl} className="w-20 h-20 text-xl border-4 border-amber-500 shadow-xl shadow-amber-500/10" />
                     <span className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-sm bg-amber-500 text-surface font-black">1</span>
                   </div>
                   <span className="text-base font-black text-on-surface">{topThree[0].teamName}</span>
@@ -162,7 +162,7 @@ export default function Leaderboard() {
               {topThree[2] && (
                 <div className="flex flex-col items-center order-3 translate-y-6">
                   <div className="relative mb-2">
-                    <PlayerAvatar name={topThree[2].username} className="w-14 h-14 text-sm border-2 border-amber-700 shadow-md" />
+                    <PlayerAvatar name={topThree[2].username} photoUrl={topThree[2].photoUrl} className="w-14 h-14 text-sm border-2 border-amber-700 shadow-md" />
                     <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs bg-amber-700 text-surface font-black">3</span>
                   </div>
                   <span className="text-xs font-bold text-on-surface">{topThree[2].teamName}</span>
@@ -197,7 +197,7 @@ export default function Leaderboard() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <PlayerAvatar name={item.username} className="w-9 h-9 text-xs" />
+                          <PlayerAvatar name={item.username} photoUrl={item.photoUrl} className="w-9 h-9 text-xs" />
                           <div>
                             <div className="font-bold text-on-surface">{item.teamName}</div>
                             <div className="text-xs text-on-surface-variant">@{item.username}</div>

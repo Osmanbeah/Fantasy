@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { getUser, logout } from '../utils/api';
+import { getUser, logout, request } from '../utils/api';
 import PlayerAvatar from './Avatar';
 
 export default function Layout({ children }) {
@@ -8,6 +8,15 @@ export default function Layout({ children }) {
   const location = useLocation();
   const user = getUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    if (user) {
+      request('/users/profile')
+        .then(data => setProfile(data))
+        .catch(err => console.error(err));
+    }
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -66,7 +75,7 @@ export default function Layout({ children }) {
               {user.role}
             </span>
             <div className="flex items-center gap-2 group relative">
-              <PlayerAvatar name={user.username} className="w-9 h-9 text-xs cursor-pointer hover:ring-2 hover:ring-primary transition-all" />
+              <PlayerAvatar name={user.username} photoUrl={profile?.photoUrl} className="w-9 h-9 text-xs cursor-pointer hover:ring-2 hover:ring-primary transition-all" />
               <button 
                 onClick={handleLogout}
                 className="hidden md:flex items-center justify-center p-2 rounded-full hover:bg-error-container/20 text-on-surface-variant hover:text-error transition-all"
