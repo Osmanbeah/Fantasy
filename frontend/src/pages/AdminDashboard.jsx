@@ -10,6 +10,7 @@ export default function AdminDashboard() {
 
   // Form states
   const [newPlayer, setNewPlayer] = useState({ name: '', club: '', price: 10 });
+  const [editingPlayerId, setEditingPlayerId] = useState(null);
   const [newGameweek, setNewGameweek] = useState({ name: '', deadline: '' });
   const [newMatch, setNewMatch] = useState({ homeClub: '', awayClub: '', gameweekId: '', kickoff: '' });
   const [newStat, setNewStat] = useState({ playerId: '', matchId: '', minutesPlayed: 90, goals: 0, assists: 0, cleanSheet: false });
@@ -63,13 +64,25 @@ export default function AdminDashboard() {
     setMessage('');
     setError('');
     try {
-      const res = await request('/admin/players', {
-        method: 'POST',
-        body: JSON.stringify(newPlayer)
-      });
-      setPlayers([...players, res]);
+      if (editingPlayerId) {
+        // Edit Mode
+        const res = await request(`/admin/players/${editingPlayerId}`, {
+          method: 'PUT',
+          body: JSON.stringify(newPlayer)
+        });
+        setPlayers(players.map(p => p.id === editingPlayerId ? res : p));
+        setEditingPlayerId(null);
+        setMessage(`Player "${res.name}" updated successfully!`);
+      } else {
+        // Add Mode
+        const res = await request('/admin/players', {
+          method: 'POST',
+          body: JSON.stringify(newPlayer)
+        });
+        setPlayers([...players, res]);
+        setMessage(`Player "${res.name}" added successfully!`);
+      }
       setNewPlayer({ name: '', club: '', price: 10 });
-      setMessage(`Player "${res.name}" added successfully!`);
     } catch (err) {
       setError(err.message);
     }
@@ -426,11 +439,11 @@ export default function AdminDashboard() {
             </form>
           </div>
 
-          {/* Player Registry Creation */}
+          {/* Player Registry Creation / Editing */}
           <div className="bg-surface-container-low border border-outline-variant rounded-xl p-6 space-y-4">
             <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">person_add</span>
-              <span>Add Player to Registry</span>
+              <span className="material-symbols-outlined text-primary">{editingPlayerId ? 'edit' : 'person_add'}</span>
+              <span>{editingPlayerId ? 'Edit Player' : 'Add Player to Registry'}</span>
             </h3>
 
             <form onSubmit={handleAddPlayer} className="space-y-4">
@@ -470,12 +483,26 @@ export default function AdminDashboard() {
                   />
                 </div>
               </div>
-              <button 
-                type="submit"
-                className="px-6 py-2 bg-primary text-on-primary rounded-lg font-bold text-xs hover:brightness-110 transition-all"
-              >
-                Add Player
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  type="submit"
+                  className="px-6 py-2 bg-primary text-on-primary rounded-lg font-bold text-xs hover:brightness-110 transition-all"
+                >
+                  {editingPlayerId ? 'Save Changes' : 'Add Player'}
+                </button>
+                {editingPlayerId && (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setEditingPlayerId(null);
+                      setNewPlayer({ name: '', club: '', price: 10 });
+                    }}
+                    className="px-6 py-2 bg-outline-variant text-on-surface rounded-lg font-bold text-xs hover:brightness-110 transition-all"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </form>
           </div>
 
@@ -551,7 +578,16 @@ export default function AdminDashboard() {
                     <td className="py-3">{p.club}</td>
                     <td className="py-3 font-mono">${p.price}M</td>
                     <td className="py-3 font-mono text-secondary font-bold">{p.totalPoints} pts</td>
-                    <td className="py-3 text-right">
+                    <td className="py-3 text-right space-x-1">
+                      <button 
+                        onClick={() => {
+                          setEditingPlayerId(p.id);
+                          setNewPlayer({ name: p.name, club: p.club, price: p.price });
+                        }}
+                        className="text-xs font-semibold text-primary hover:underline px-2"
+                      >
+                        Edit
+                      </button>
                       <button 
                         onClick={() => handleDeletePlayer(p.id)}
                         className="text-xs font-semibold text-tertiary hover:underline px-2"
