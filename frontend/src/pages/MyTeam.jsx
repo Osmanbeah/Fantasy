@@ -269,11 +269,28 @@ export default function MyTeam() {
 
   // Remove player completely from slot
   const handleRemovePlayer = (slotIndex) => {
-    const player = squad[slotIndex];
-    if (!player) return;
+    let targetIdx = slotIndex;
+    if (targetIdx === null && profilePlayerId) {
+      targetIdx = squad.findIndex(p => p && p.id === profilePlayerId);
+    }
+
+    if (targetIdx === -1 || targetIdx === null || targetIdx === undefined) {
+      setProfileSlotIndex(null);
+      setProfilePlayerId(null);
+      setConfirmRemove(false);
+      return;
+    }
+
+    const player = squad[targetIdx];
+    if (!player) {
+      setProfileSlotIndex(null);
+      setProfilePlayerId(null);
+      setConfirmRemove(false);
+      return;
+    }
 
     const newSquad = [...squad];
-    newSquad[slotIndex] = null;
+    newSquad[targetIdx] = null;
     setSquad(newSquad);
 
     if (captainId === player.id) setCaptainId(null);
