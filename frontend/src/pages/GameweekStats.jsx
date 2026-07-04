@@ -11,7 +11,11 @@ export default function GameweekStats() {
 
   const fetchData = async () => {
     try {
-      const gws = await request('/gameweeks');
+      const [gws, pls] = await Promise.all([
+        request('/gameweeks'),
+        request('/players')
+      ]);
+
       setGameweeks(gws);
       if (gws.length > 0) {
         // Default to active gameweek or first gameweek
@@ -19,7 +23,6 @@ export default function GameweekStats() {
         setSelectedGameweekId(active.id.toString());
       }
       
-      const pls = await request('/players');
       setPlayers(pls);
     } catch (e) {
       console.error(e);
@@ -167,7 +170,7 @@ export default function GameweekStats() {
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <PlayerAvatar name={player.name} className="w-9 h-9 text-xs" />
+                            <PlayerAvatar name={player.name} photoUrl={player.photoUrl} className="w-9 h-9 text-xs" />
                             <div>
                               <div className="font-bold text-on-surface">{player.name}</div>
                               <div className="text-xs text-on-surface-variant">{player.club}</div>

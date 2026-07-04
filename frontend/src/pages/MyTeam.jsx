@@ -43,10 +43,14 @@ export default function MyTeam() {
 
   const fetchData = async () => {
     try {
-      const sett = await request('/settings');
-      setSettings(sett);
+      const [sett, teamData, plList, myProfile] = await Promise.all([
+        request('/settings'),
+        request('/teams/my-team'),
+        request('/players'),
+        request('/users/profile')
+      ]);
 
-      const teamData = await request('/teams/my-team');
+      setSettings(sett);
       setActiveGameweek(teamData.activeGameweek || null);
       if (teamData && teamData.team) {
         setTeam(teamData.team);
@@ -72,13 +76,10 @@ export default function MyTeam() {
       setActiveChips(teamData.activeChips || []);
       setUsedChips(teamData.usedChips || []);
 
-      const plList = await request('/players');
       setPlayersList(plList);
-
       const uniqueClubs = ['All', ...new Set(plList.map(p => p.club))];
       setClubs(uniqueClubs);
 
-      const myProfile = await request('/users/profile');
       setMyPlayerProfile(myProfile);
       setProfileForm({ playerName: myProfile.name, club: myProfile.club, photoUrl: myProfile.photoUrl || '' });
     } catch (e) {

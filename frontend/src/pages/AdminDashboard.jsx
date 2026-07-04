@@ -20,13 +20,14 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const setts = await request('/admin/settings');
-      setSettings(setts);
-      
-      const pls = await request('/players');
-      setPlayers(pls);
+      const [setts, pls, gws] = await Promise.all([
+        request('/admin/settings'),
+        request('/players'),
+        request('/gameweeks')
+      ]);
 
-      const gws = await request('/gameweeks');
+      setSettings(setts);
+      setPlayers(pls);
       setGameweeks(gws);
       if (gws.length > 0) {
         setNewMatch(prev => ({ ...prev, gameweekId: gws[0].id.toString() }));
