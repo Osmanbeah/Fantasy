@@ -441,7 +441,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Player Registry Creation / Editing */}
-          <div className="bg-surface-container-low border border-outline-variant rounded-xl p-6 space-y-4">
+          <div id="player-form" className="bg-surface-container-low border border-outline-variant rounded-xl p-6 space-y-4">
             <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
               <span className="material-symbols-outlined text-primary">{editingPlayerId ? 'edit' : 'person_add'}</span>
               <span>{editingPlayerId ? 'Edit Player' : 'Add Player to Registry'}</span>
@@ -584,6 +584,7 @@ export default function AdminDashboard() {
                         onClick={() => {
                           setEditingPlayerId(p.id);
                           setNewPlayer({ name: p.name, club: p.club, price: p.price });
+                          document.getElementById('player-form')?.scrollIntoView({ behavior: 'smooth' });
                         }}
                         className="text-xs font-semibold text-primary hover:underline px-2"
                       >
