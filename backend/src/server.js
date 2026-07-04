@@ -231,9 +231,7 @@ app.get('/api/teams/my-team', authenticateToken, async (req, res) => {
     });
 
     const activeGameweek = await prisma.gameweek.findFirst({
-      where: { isActive: true }
-    }) || await prisma.gameweek.findFirst({
-      where: { deadline: { gte: new Date() } },
+      where: { isCompleted: false },
       orderBy: { deadline: 'asc' }
     });
 
@@ -266,7 +264,7 @@ app.post('/api/teams/play-chip', authenticateToken, async (req, res) => {
 
   try {
     const activeGameweek = await prisma.gameweek.findFirst({
-      where: { deadline: { gte: new Date() } },
+      where: { isCompleted: false },
       orderBy: { deadline: 'asc' }
     });
 
@@ -367,7 +365,7 @@ app.post('/api/teams/save', authenticateToken, async (req, res) => {
     }
 
     const activeGameweek = await prisma.gameweek.findFirst({
-      where: { deadline: { gte: new Date() } },
+      where: { isCompleted: false },
       orderBy: { deadline: 'asc' }
     });
 
@@ -376,7 +374,7 @@ app.post('/api/teams/save', authenticateToken, async (req, res) => {
     }
 
     if (activeGameweek.isLocked) {
-      return res.status(400).json({ error: `Squad transfers are locked because ${activeGameweek.name} has been locked.` });
+      return res.status(400).json({ error: `Squads are locked for ${activeGameweek.name}. You can't make changes until it finishes.` });
     }
 
     // Check chips active for upcoming gameweek
@@ -965,7 +963,7 @@ app.post('/api/admin/gameweeks/:id/complete', authenticateToken, requireRole('AD
 
     // Set next gameweek to active
     const nextGW = await prisma.gameweek.findFirst({
-      where: { deadline: { gte: new Date() } },
+      where: { isCompleted: false },
       orderBy: { deadline: 'asc' }
     });
     if (nextGW) {

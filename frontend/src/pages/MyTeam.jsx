@@ -326,10 +326,11 @@ export default function MyTeam() {
               type="text"
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
-              className="text-2xl font-black bg-transparent border-b border-transparent hover:border-outline-variant focus:border-primary focus:outline-none text-on-surface max-w-sm"
+              disabled={activeGameweek?.isLocked}
+              className="text-2xl font-black bg-transparent border-b border-transparent hover:border-outline-variant focus:border-primary focus:outline-none text-on-surface max-w-sm disabled:opacity-80"
               placeholder="Enter Team Name"
             />
-            <span className="material-symbols-outlined text-on-surface-variant text-sm">edit</span>
+            {!activeGameweek?.isLocked && <span className="material-symbols-outlined text-on-surface-variant text-sm">edit</span>}
           </div>
           
           {/* Progress Budget Bar */}
@@ -379,7 +380,7 @@ export default function MyTeam() {
       {activeGameweek?.isLocked && (
         <div className="bg-primary/10 border border-primary/30 text-primary text-xs rounded-lg p-3.5 flex items-center gap-2">
           <span className="material-symbols-outlined text-sm font-black">lock</span>
-          <span>Squad transfers are locked because <strong>{activeGameweek.name}</strong> has been locked by the admin. You can still view player profiles.</span>
+          <span>Squads are locked for <strong>{activeGameweek.name}</strong>. You can't make changes until it finishes.</span>
         </div>
       )}
 
@@ -405,8 +406,8 @@ export default function MyTeam() {
             return (
               <div 
                 key={chip}
-                onClick={() => status === 'AVAILABLE' && setConfirmChip(chip)}
-                className={`border p-3 rounded-lg text-center select-none transition-all flex flex-col items-center justify-center gap-1 ${getChipBadgeClass(status)}`}
+                onClick={() => status === 'AVAILABLE' && !activeGameweek?.isLocked && setConfirmChip(chip)}
+                className={`border p-3 rounded-lg text-center select-none transition-all flex flex-col items-center justify-center gap-1 ${getChipBadgeClass(status)} ${activeGameweek?.isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <div className="text-xs font-black tracking-tight">{chip.replace('_', ' ')}</div>
                 <div className="text-[9px] font-mono font-bold opacity-80">{status}</div>
