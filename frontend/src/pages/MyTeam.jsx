@@ -34,6 +34,8 @@ export default function MyTeam() {
   const [myPlayerProfile, setMyPlayerProfile] = useState(null);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileForm, setProfileForm] = useState({ playerName: '', club: '', photoUrl: '' });
+  const [editPhotoBase64, setEditPhotoBase64] = useState('');
+  const [customClub, setCustomClub] = useState('');
 
   // Dialog & Message states
   const [confirmChip, setConfirmChip] = useState(null); // chip code if confirming
@@ -158,10 +160,19 @@ export default function MyTeam() {
     e.preventDefault();
     setError('');
     setMessage('');
+    
+    setLoading(true); // show loader during generation
+    const finalClub = profileForm.club === 'Custom' ? customClub : profileForm.club;
+
     try {
       const updated = await request('/users/profile', {
         method: 'PUT',
-        body: JSON.stringify(profileForm)
+        body: JSON.stringify({
+          playerName: profileForm.playerName,
+          club: finalClub || 'Real Madrid',
+          photo: editPhotoBase64 || undefined,
+          photoUrl: editPhotoBase64 ? undefined : profileForm.photoUrl
+        })
       });
       setMyPlayerProfile(updated);
       setShowProfileEdit(false);
@@ -172,6 +183,8 @@ export default function MyTeam() {
       setPlayersList(plList);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -384,11 +397,19 @@ export default function MyTeam() {
           <button 
             onClick={() => {
               if (myPlayerProfile) {
+                const popularClubs = [
+                  'Real Madrid', 'Barcelona', 'Manchester United', 'Manchester City',
+                  'Liverpool', 'Arsenal', 'Chelsea', 'Bayern Munich', 'PSG',
+                  'Al Nassr', 'Inter Miami'
+                ];
+                const isPopular = popularClubs.includes(myPlayerProfile.club);
                 setProfileForm({
                   playerName: myPlayerProfile.name,
-                  club: myPlayerProfile.club,
+                  club: isPopular ? myPlayerProfile.club : 'Custom',
                   photoUrl: myPlayerProfile.photoUrl || ''
                 });
+                setCustomClub(isPopular ? '' : myPlayerProfile.club);
+                setEditPhotoBase64('');
               }
               setShowProfileEdit(true);
             }}
@@ -837,27 +858,64 @@ export default function MyTeam() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-on-surface-variant mb-1 uppercase tracking-wider">Club / Affiliation</label>
-                <input 
-                  type="text" 
+                <label className="block text-xs font-semibold text-on-surface-variant mb-1 uppercase tracking-wider">Choose Jersey / Kit</label>
+                <select
                   value={profileForm.club}
                   onChange={(e) => setProfileForm({ ...profileForm, club: e.target.value })}
-                  required
                   className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm"
-                  placeholder="Your Club"
-                />
+                >
+                  <option value="Real Madrid">Real Madrid</option>
+                  <option value="Barcelona">Barcelona</option>
+                  <option value="Manchester United">Manchester United</option>
+                  <option value="Manchester City">Manchester City</option>
+                  <option value="Liverpool">Liverpool</option>
+                  <option value="Arsenal">Arsenal</option>
+                  <option value="Chelsea">Chelsea</option>
+                  <option value="Bayern Munich">Bayern Munich</option>
+                  <option value="PSG">PSG</option>
+                  <option value="Al Nassr">Al Nassr</option>
+                  <option value="Inter Miami">Inter Miami</option>
+                  <option value="Custom">Other / Custom Kit...</option>
+                </select>
+                
+                {profileForm.club === 'Custom' && (
+                  <input 
+                    type="text" 
+                    value={customClub}
+                    onChange={(e) => setCustomClub(e.target.value)}
+                    required
+                    className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm mt-2"
+                    placeholder="e.g. AC Milan, Dortmund"
+                  />
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-on-surface-variant mb-1 uppercase tracking-wider">Photo URL</label>
+                <label className="block text-xs font-semibold text-on-surface-variant mb-1 uppercase tracking-wider">Upload New Photo (Optional)</label>
                 <input 
-                  type="url" 
-                  value={profileForm.photoUrl}
-                  onChange={(e) => setProfileForm({ ...profileForm, photoUrl: e.target.value })}
-                  className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm"
-                  placeholder="https://example.com/avatar.jpg"
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setEditPhotoBase64(reader.result);
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                  className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-4 py-2 focus:outline-none focus:border-primary transition-colors text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-on-primary hover:file:brightness-110"
                 />
-                <p className="text-[10px] text-on-surface-variant/80 mt-1">Provide an image link from the web to show your photo.</p>
+                <p className="text-[10px] text-on-surface-variant/80 mt-1">Upload a photo to regenerate your AI football kit avatar.</p>
+                {editPhotoBase64 && (
+                  <div className="mt-3 flex items-center justify-center">
+                    <img 
+                      src={editPhotoBase64} 
+                      alt="New Preview" 
+                      className="w-16 h-16 object-cover rounded-full border border-outline-variant"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

@@ -181,7 +181,7 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
 });
 
 app.put('/api/users/profile', authenticateToken, async (req, res) => {
-  const { playerName, club, photoUrl } = req.body;
+  const { playerName, club, photoUrl, photo } = req.body;
   try {
     const player = await prisma.player.findUnique({
       where: { userId: req.user.id }
@@ -191,12 +191,18 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Linked player record not found' });
     }
 
+    let finalPhotoUrl = photoUrl;
+    if (photo) {
+      const kitJersey = club !== undefined ? club : player.club;
+      finalPhotoUrl = await generateKitAvatar(photo, kitJersey || 'Real Madrid');
+    }
+
     const updatedPlayer = await prisma.player.update({
       where: { id: player.id },
       data: {
         name: playerName !== undefined ? playerName : player.name,
         club: club !== undefined ? club : player.club,
-        photoUrl: photoUrl !== undefined ? photoUrl : player.photoUrl
+        photoUrl: finalPhotoUrl !== undefined ? finalPhotoUrl : player.photoUrl
       }
     });
 
