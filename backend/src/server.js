@@ -11,7 +11,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.get('/', (req, res) => {
   res.json({ message: "Kinetic Fantasy League API is running!" });
@@ -25,8 +26,64 @@ function generateInviteCode() {
 // -------------------------------------------------------------
 // 1. AUTH ROUTES
 // -------------------------------------------------------------
+// Helper for generating AI kit avatar using Gemini Vision and Pollinations.ai
+async function generateKitAvatar(photoBase64, clubName) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn("GEMINI_API_KEY is not defined. Using default placeholder.");
+    const fallbackPrompt = `A realistic headshot portrait of a professional football player wearing a ${clubName || 'Real Madrid'} kit jersey`;
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(fallbackPrompt)}?width=512&height=512&nologo=true`;
+  }
+
+  try {
+    // Strip header if present
+    const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "");
+    
+    // Call Gemini Vision to describe the face
+    const visionUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const visionResponse = await fetch(visionUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: "Describe this person's physical appearance (gender, skin tone, hair style and color, facial hair) in a single short line under 15 words. Do not write full sentences." },
+              {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: base64Data
+                }
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    const visionData = await visionResponse.json();
+    let description = visionData.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (description) {
+      description = description.replace(/[\r\n]+/g, " ").trim();
+    } else {
+      description = "athletic person, neutral features";
+    }
+
+    console.log("Gemini Vision profile description:", description);
+
+    // Build the pollinations prompt
+    const kitJersey = clubName || 'Real Madrid';
+    const pollinationsPrompt = `A high-quality realistic 3D sports game headshot portrait of a football player with features: ${description}. They are wearing a professional ${kitJersey} football kit jersey. Epic stadium lighting, athletic profile picture, EA Sports FC game style, photorealistic rendering.`;
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(pollinationsPrompt)}?width=512&height=512&nologo=true`;
+  } catch (error) {
+    console.error("Failed to generate AI kit avatar:", error);
+    const fallbackPrompt = `A realistic headshot portrait of a professional football player wearing a ${clubName || 'Real Madrid'} kit jersey`;
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(fallbackPrompt)}?width=512&height=512&nologo=true`;
+  }
+}
+
 app.post('/api/auth/register', async (req, res) => {
-  const { email, username, password, playerName, club, photoUrl } = req.body;
+  const { email, username, password, playerName, club, photo } = req.body;
   if (!email || !username || !password) {
     return res.status(400).json({ error: 'All fields are required' });
   }
@@ -42,6 +99,12 @@ app.post('/api/auth/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const count = await prisma.user.count();
     const role = count === 0 ? 'ADMIN' : 'USER';
+
+    // Generate the AI kit avatar if photo is uploaded
+    let finalPhotoUrl = null;
+    if (photo) {
+      finalPhotoUrl = await generateKitAvatar(photo, club || 'Real Madrid');
+    }
 
     const user = await prisma.user.create({
       data: {
@@ -71,7 +134,7 @@ app.post('/api/auth/register', async (req, res) => {
         club: club || 'Free Agent',
         price: defaultPrice,
         userId: user.id,
-        photoUrl: photoUrl || null
+        photoUrl: finalPhotoUrl
       }
     });
 
