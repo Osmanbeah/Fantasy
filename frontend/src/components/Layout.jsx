@@ -9,6 +9,7 @@ export default function Layout({ children }) {
   const user = getUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -75,7 +76,9 @@ export default function Layout({ children }) {
               {user.role}
             </span>
             <div className="flex items-center gap-2 group relative">
-              <PlayerAvatar name={user.username} photoUrl={profile?.photoUrl} className="w-9 h-9 text-xs cursor-pointer hover:ring-2 hover:ring-primary transition-all" />
+              <div onClick={() => setShowProfileModal(true)}>
+                <PlayerAvatar name={user.username} photoUrl={profile?.photoUrl} className="w-9 h-9 text-xs cursor-pointer hover:ring-2 hover:ring-primary transition-all" />
+              </div>
               <button 
                 onClick={handleLogout}
                 className="hidden md:flex items-center justify-center p-2 rounded-full hover:bg-error-container/20 text-on-surface-variant hover:text-error transition-all"
@@ -98,6 +101,16 @@ export default function Layout({ children }) {
       {/* Mobile Drawer menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-40 bg-surface/90 backdrop-blur-md pt-20 px-6 flex flex-col gap-4 md:hidden">
+          <div 
+            onClick={() => { setMobileMenuOpen(false); setShowProfileModal(true); }}
+            className="flex items-center gap-3 p-4 mb-2 bg-surface-container-high/50 rounded-xl border border-outline-variant cursor-pointer active:scale-[0.98] transition-all"
+          >
+            <PlayerAvatar name={user.username} photoUrl={profile?.photoUrl} className="w-12 h-12 text-sm border border-primary/20" />
+            <div className="text-left">
+              <div className="font-bold text-on-surface text-sm">{profile?.name || user.username}</div>
+              <div className="text-[10px] text-primary font-semibold uppercase tracking-wider">View AI Player Card</div>
+            </div>
+          </div>
           {navLinks.map(link => (
             <Link 
               key={link.path}
@@ -154,6 +167,45 @@ export default function Layout({ children }) {
           </Link>
         )}
       </nav>
+
+      {/* Profile Details Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowProfileModal(false)}>
+          <div className="w-full max-w-sm bg-surface-container-low border border-outline-variant rounded-2xl p-6 relative shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setShowProfileModal(false)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface transition-colors"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <h3 className="text-lg font-bold text-on-surface text-center mb-4">My AI Player Card</h3>
+            
+            <div className="flex flex-col items-center">
+              {profile?.photoUrl ? (
+                <img 
+                  src={profile.photoUrl} 
+                  alt={profile.name} 
+                  className="w-48 h-48 object-cover rounded-xl border border-outline-variant shadow-lg"
+                />
+              ) : (
+                <div className="w-48 h-48 rounded-xl bg-primary/10 flex items-center justify-center border border-outline-variant">
+                  <span className="material-symbols-outlined text-[64px] text-primary">sports_soccer</span>
+                </div>
+              )}
+
+              <div className="mt-4 text-center">
+                <h4 className="text-xl font-black text-primary">{profile?.name || user.username}</h4>
+                <p className="text-xs text-on-surface-variant/80 uppercase font-mono tracking-wider mt-1">@{user.username}</p>
+                <div className="inline-flex items-center gap-1.5 mt-3 bg-surface-container-high px-3 py-1.5 rounded-full border border-outline-variant">
+                  <span className="material-symbols-outlined text-xs text-primary">check_circle</span>
+                  <span className="text-xs font-semibold text-on-surface">{profile?.club || 'Free Agent'} Kit</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
