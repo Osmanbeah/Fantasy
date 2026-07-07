@@ -38,7 +38,22 @@ export function logout() {
   localStorage.removeItem('user');
 }
 
+const getCache = {};
+
 export async function request(endpoint, options = {}) {
+  const method = options.method || 'GET';
+  
+  // Cache GET requests for 15 seconds
+  if (method === 'GET') {
+    const cacheKey = endpoint;
+    const cached = getCache[cacheKey];
+    const now = Date.now();
+    
+    if (cached && (now - cached.timestamp < 15000)) {
+      return cached.data;
+    }
+  }
+
   const token = getToken();
   const headers = {
     'Content-Type': 'application/json',
@@ -55,5 +70,19 @@ export async function request(endpoint, options = {}) {
   if (!response.ok) {
     throw new Error(data.error || 'Something went wrong');
   }
+
+  // Save to cache for GET requests
+  if (method === 'GET') {
+    getCache[endpoint] = {
+      data,
+      timestamp: Date.now()
+    };
+  } else {
+    // Clear cache on mutations (POST, PUT, DELETE) to prevent stale data
+    for (const key in getCache) {
+      delete getCache[key];
+    }
+  }
+
   return data;
 }
